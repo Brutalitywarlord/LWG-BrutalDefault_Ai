@@ -202,7 +202,7 @@ if (workers.length > 0){
 	//Deploys a worker to produce a House
 	if(houseCheck == true && time > 10){
 		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < (1 + Rax.length*2)){
+		if (houses.length < 1 || houses.length < (Rax.length*2)){
 			RandBuild("House","Build House", workers, 3, castles, 12, 7);
 		}
 	}
@@ -546,23 +546,26 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 				for (var i = 0; i < si; i++){
 					if(gold >= Cost && scope.positionIsPathable(X + i,Y - i) == true
 					&& scope.fieldIsRamp(X + i,Y - i) != true){
+						//If the position is not blocked, set array value equal to 1
 						check[i] = 1;
 					}
 				}
 				//Performs a check to ensure building can be constructed at specified location
-				for (var z = 0; z < si; i++){
+				for (var z = 0; z < si; z++){
+					//If it detects a non-one value in the array, position is invald and exits loop
 					if(check[z] != 1){
 						//do Nothing
 						z = si;
 					}
 					else{
+						//If no non-one values are detected, position is valid and attempts construction
 						scope.order("Stop", s);//Stops current Order
 						scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-						b = 10;//Exits Loop
 						z = si;
+						b = 10;//Exits Loop
 					}
 				}
-				b = b + 1;//Cycles Loop and eventually ends it
+				b = b + 1;//Cycles While Loop and eventually ends it
 			}
 			
 		}
