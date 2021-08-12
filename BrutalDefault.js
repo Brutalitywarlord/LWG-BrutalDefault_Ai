@@ -108,14 +108,14 @@ birbCheck = DecisionTick(60);
 forgeCheck = DecisionTick(Math.floor(120*scope.exspansion));
 var minecheck = DecisionTick(60);
 
-if(castles.length < 2){
+if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
 	//for constructing the second castle
-	castleCheck = DecisionTick(2);
+	castleCheck = DecisionTick(10);
 }
 else{
 	//After a second castle is built, tickrate is modified to give less priority to building castles
-	castleCheck = DecisionTick(300);
+	castleCheck = DecisionTick(180 * scope.exspansion);
 }
 
 //gives a mining command to any idle workers
@@ -541,28 +541,31 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						
 					}
 				}
-				
-				//Determines if a location is not blocked(Ie: Can be built on)
-				for (var i = 0; i < si; i++){
-					if(gold >= Cost && scope.positionIsPathable(X + i,Y - i) == true
-					&& scope.fieldIsRamp(X + i,Y - i) != true){
-						//If the position is not blocked, set array value equal to 1
-						check[i] = 1;
+				//This part of the code determines if the structure can actually be built
+				if(gold >= Cost){
+					//scans the provided coordinates to determine if position is valid.
+					var check = false;
+					for(var i = 0; i < si; i++){
+						for(var z = 0; z < si; z++){
+							if (scope.getCommandFromCommandName(c).unitType.couldBePlacedAt(X + i, Y + z) == false){
+								//if position is invalid, check is false
+								check = false;
+								z = si;
+								i = si;
+								
+							}
+							else{
+								check = true;
+							}
+						}			
 					}
-				}
-				//Performs a check to ensure building can be constructed at specified location
-				for (var z = 0; z < si; z++){
-					//If it detects a non-one value in the array, position is invald and exits loop
-					if(check[z] != 1){
-						//do Nothing
-						z = si;
-					}
-					else{
-						//If no non-one values are detected, position is valid and attempts construction
+					
+					if (check == true){
+						//if position is valid, check is true, and an order is issued to build at location
+						//Code then breaks the overarching while loop to prevent infinite run time
 						scope.order("Stop", s);//Stops current Order
 						scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-						z = si;
-						b = 10;//Exits Loop
+						b = 10;//Exits While Loop
 					}
 				}
 				b = b + 1;//Cycles While Loop and eventually ends it
@@ -660,7 +663,7 @@ function newCastle(){
 	{
 		//Cycle through all known active goldmines and find those within a certain distance of the castle.
 		for(var g = 0; g < mines.length; g++){
-			if (GetDist(d, mines[g]) < rad && GetDist(d, mines[g]) > 8){
+			if (GetDist(d, mines[g]) < rad && GetDist(d, mines[g]) > 10){
 				closeMines.push(mines[g]);
 			}
 		}
