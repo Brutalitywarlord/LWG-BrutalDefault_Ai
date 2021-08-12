@@ -60,7 +60,7 @@ var towers = scope.getBuildings({type: "Watchtower", player: me, onlyFinished: t
 var Rax = scope.getBuildings({type: "Barracks", player: me, onlyFinished: true});
 var forges = scope.getBuildings({type: "Forge", player: me, onlyFinished: true});
 var impStruct = castles.concat(houses.concat(towers.concat(Rax)))
-var allAllied = scanFriendly();
+var allAllied = scope.getBuildings({team: myTeam, onlyFinished: true});
 
 //Variables to locate Computer owned units
 var idleWorkers = scope.getUnits({type: "Worker", player: me, order: "Stop"});
@@ -781,15 +781,4 @@ function attackQuips(){
 
 }
 
-//Scans an array of allied units and removes all of the neutral entities
-function scanFriendly(){
-	var trueAlly = [];
-	var Allied = scope.getBuildings({enemyOf: !me, onlyFinished: true})
-	for(i = 0; i < Allied.length; i++){
-		if(Allied[i].isNeutral() == false){
-			trueAlly.push(Allied[i]);
-		}
-	}
-	return trueAlly;
-}
 
