@@ -740,9 +740,12 @@ function defenseQuips(){
 	if(choice > 29 && choice < 60 ){
 		scope.chatMsg("Please go away");
 	}
-	if(choice > 59 ){
-		scope.chatMsg("Hey >:( ");
-		scope.chatMsg("Get away from my buildings!")
+	if(choice > 59 && choice < 95 ){
+		scope.chatMsg("You're not being very friendly right now");
+	}
+	if(choice > 95){
+		scope.chatMsg("If you don't get away from my buildings...");
+		scope.chatMsg("I am going to rip off your head and shove excrement down your neck")
 	}
 }
 //Sends a preset message related to Attack
@@ -780,5 +783,9 @@ function attackQuips(){
 	}
 
 }
+
+
+
+
 
 
