@@ -10,7 +10,7 @@
 if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
 	scope.aggression = 1 + (1/randBehavior(10, true));//Controls the interval for aggresive actions
-	scope.frugal = 1 + (1/randBehavior(10));//Controls how much money the Computer wants to save
+	scope.frugal = 1 + (1/randBehavior(20));//Controls how much money the Computer wants to save
 	scope.intel = 1 + (1/randBehavior(10, true));//Controls the interval for scouting actions
 	scope.exspansion = 1 + (1/randBehavior(10, true));//Controls the interval for most building construction
 	scope.defensive = 1 + (1/randBehavior(10, true));//Controls interval for defensive actions
@@ -42,7 +42,6 @@ var time = Math.round(scope.getCurrentGameTimeInSec());
 var me = scope.getMyPlayerNumber();
 var myTeam = scope.getMyTeamNumber();
 var gold = scope.getGold();
-var enemyLoc = scope.getStartLocationForPlayerNumber();
 var mines = EmptyFilter();
 var Width = scope.getMapWidth();
 var Height = scope.getMapHeight();
@@ -61,7 +60,7 @@ var towers = scope.getBuildings({type: "Watchtower", player: me, onlyFinished: t
 var Rax = scope.getBuildings({type: "Barracks", player: me, onlyFinished: true});
 var forges = scope.getBuildings({type: "Forge", player: me, onlyFinished: true});
 var impStruct = castles.concat(houses.concat(towers.concat(Rax)))
-var allAllied = scope.getBuildings({player: me, onlyFinished: true})
+var allAllied = scanFriendly();
 
 //Variables to locate Computer owned units
 var idleWorkers = scope.getUnits({type: "Worker", player: me, order: "Stop"});
@@ -96,7 +95,7 @@ var forgeCheck = false;
 mineDelay = DecisionTick(3);
 scout = DecisionTick(Math.floor(60*scope.intel));
 isBattle = DecisionTick(Math.floor(20*scope.defensive));
-isSiege = DecisionTick(Math.floor(90*scope.aggression));
+isSiege = DecisionTick(Math.floor(180*scope.aggression));
 towerBuild = DecisionTick(Math.floor(50*scope.exspansion));
 workerCheck = DecisionTick(25);
 repCheck = DecisionTick(Math.floor(10*scope.defensive));
@@ -105,13 +104,13 @@ raxCheck = DecisionTick(Math.floor(20*scope.exspansion));
 armyCheck = DecisionTick(5);
 upgCheck = DecisionTick(Math.floor((120*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
-forgeCheck = DecisionTick(Math.floor(120*scope.exspansion));
+forgeCheck = DecisionTick(Math.floor(60*scope.exspansion));
 var minecheck = DecisionTick(60);
 
 if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
 	//for constructing the second castle
-	castleCheck = DecisionTick(10);
+	castleCheck = DecisionTick(5);
 }
 else{
 	//After a second castle is built, tickrate is modified to give less priority to building castles
@@ -134,30 +133,30 @@ if(birbCheck == true && birbs.length < 1 && time > 300 && scope.plentyGold == tr
 
 //Commands small army to move to random location
 if (scout == true){
-
-	if(birbs.length > 0){
+	if(birbs.length > 0 && time > 450){
 		//If a bird exists, use it for scouting
 		Scout(Width,Height,birbs, false);
 	}
 	else{
 		//If a bird doesn't exist, use a basic soldier instead - if one exists
-		if(time > 300 && Army.length > 0){
+		if(time > 600 && Army.length > 0){
 			var scouter = [];//Empty array to store the first unit in the array of units
 			scouter.push(Army[0]);
 			Scout(Width,Height, scouter, false);
 		}
 	}
+	
 }
 
 //If the enemy is close to one of the computers buildings, send units to intercept.
 if(isBattle == true){
 	if(enemyUnits.length > 0 && allAllied.length > 0 && Army.length >= enemyUnits.length) {
-		var e = enemyUnits[Random(enemyUnits.length)]; //Only checks one enemy to prevent lag
+		var e = enemyUnits[Random(0,enemyUnits.length)]; //Only checks one enemy to prevent lag
 		for(var i = 0; i < allAllied.length; i++){
 			//For loop cycles through an array of all specified buildings
 			var b = allAllied[i];
 			var dist = GetDist(b, e);//Gets the hypotenouse between allied structure, and enemy
-			if(dist < 15/scope.defensive){
+			if(dist < 17*scope.defensive){
 				//If an enemy unit is within the defensive threshold - deploy army to intercept
 				scope.order("AMove", Army, {x: e.getX(),y: e.getY()});
 				defenseQuips();
@@ -169,7 +168,7 @@ if(isBattle == true){
 	}
 }
 //Declares an attack against a random enemy building 
-if(isSiege == true && castles.length > 1){
+if(isSiege == true && (castles.length > 1 || scope.plentyGold == true)){
 	if(Army.length > 10){
 		//If the computer has at least 10 soldiers, and knows the enemies location...
 		//Attack the enemy
@@ -199,28 +198,29 @@ if (workers.length > 0){
 	if (raxCheck == true && (Rax.length < castles.length*2)){
 		RandBuild("Barracks","Build Barracks", workers, 3, castles, 10);
 	}
+	//Deploys a worker to construct a Forge
+	if(forgeCheck == true && forges.length < 1 && (time > 450 || scope.plentyGold == true)){
+		RandBuild("Forge","Build Forge", workers, 3, castles, 15);
+		//After the in-game clock has reached 10 minutes, construct a Forge if possible
+	}
 	//Deploys a worker to produce a House
-	if(houseCheck == true && time > 10){
+	if(houseCheck == true && time > 10 ){
 		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < 1 || houses.length < (Rax.length*2)){
+		if (houses.length < 1 || houses.length < (Rax.length*2) || scope.plentyGold == true ){
 			RandBuild("House","Build House", workers, 3, castles, 12, 7);
 		}
 	}
 	//Deploys a worker to construct a watchtower
 	if (towerBuild == true && Rax.length > 1 && castles.length < 2 && towers.length < 1 && scope.plentyGold == false){
-		RandBuild("Watchtower","Build Watchtower", workers, 2, impStruct, 13,7);
+		RandBuild("Watchtower","Build Watchtower", workers, 2, impStruct, 10,3);
 		//This statement will only run if there is a Barracks built, and there is less than 2 castles
 	}
 	if ((towerBuild == true  && castles.length > 1) || (towerBuild == true  && scope.plentyGold == true)){
-		RandBuild("Watchtower","Build Watchtower", workers, 2, impStruct, 13,7);
+		RandBuild("Watchtower","Build Watchtower", workers, 2, impStruct, 10,3);
 		//If there is more than 1 castle, or the map has an excess of gold nearby the starting castle, 
 		//Freely build towers when possible during a set interval. 
 	}
-	//Deploys a worker to construct a Forge
-	if(forgeCheck == true && forges.length < 1 && time > 600){
-		RandBuild("Forge","Build Forge", workers, 3, castles, 15);
-		//After the in-game clock has reached 10 minutes, construct a Forge if possible
-	}
+
 	//Deploys a worker to repair a damaged building
 	if (repCheck == true && time > 10){
 		if(allBuild.length > 0){
@@ -235,8 +235,8 @@ else {
 }
 
 if (armyCheck == true){
-	var choice = Random(100);//Generates a random number to act as a method of choosing a unit to build
-	if (choice < 35){
+	var choice = Random(0,100);//Generates a random number to act as a method of choosing a unit to build
+	if (choice < 40){
 		//Trains an Archer 35% of the time
 		TrainUnit(Rax, "Train Archer");
 	}
@@ -273,7 +273,7 @@ function startMine(){
 	var nearestDist = 99999;
 	var closeMines = [];
 	var selectedMine = null;
-	var d = castles[Random(castles.length)];
+	var d = castles[Random(0, castles.length)];
 	if(castles.length > 0)
 	{
 		
@@ -302,7 +302,7 @@ function startMine(){
 		if (idleWorkers[b].getCurrentOrderName() != "Repair"){
 			idle[0] = idleWorkers[b];
 		}
-		selectedMine = closeMines[Random(closeMines.length)];
+		selectedMine = closeMines[Random(0, closeMines.length)];
 		scope.order("Mine", idle, {unit: selectedMine});
 	}
 }
@@ -320,7 +320,7 @@ function EmptyFilter(){
 //Function which determines tickrate for certain actions based on gameclock
 function DecisionTick(rate){
 	var t = time;
-	var r = rate;
+	var r = Math.floor(rate + 0.01);
 	//determines if the time is perfectly divisable by the rate
 	var i = t % r == 0;
 	return i;
@@ -335,47 +335,75 @@ function Scout(width,height, unit,squad){
 	var m = unit; //Imports array of units to be selected from
 	var s = []; // Empty array  - will be filled
 	var r = 0;;//Selects a random index.
-	
-	
-	//Selects a random cordinate within the map.
-	var X = Math.random()*(w+1);
-	var Y = Math.random()*(h+1);
-	if (sq == false){
-		//if Squad is set to false, deploy only a single unit
-		r = Random(m.length)
-		s.push(m[r]);
-		scope.order("AMove",s,{x: X,y: Y},{shift: true});
+	//Grabs the start location of a random player
+	var enemyLoc = scope.getStartLocationForPlayerNumber(scope.playNum[Random(0, scope.playNum.length)]);
+	//Sorts out neutrals from enemy buildings array
+	var trueEnemy = [];
+	for(i = 0; i < enemyBuildings.length; i++){
+		if(enemyBuildings[i].isNeutral() == false){
+			trueEnemy.push(enemyBuildings[i]);
+		}
+	}
+	if(time < 600 && trueEnemy.length < 1){
+		//If the game is within the first 10 minutes, scout a random player's start location
+		if (sq == false){
+			//if Squad is set to false, deploy only a single unit
+			r = Random(0, m.length)
+			s.push(m[r]);
+			scope.order("AMove",s,enemyLoc,{shift: true});
+		}
+		else{
+			if (m.length > 4){
+				var i = 0;
+				while (i < 5){
+					r = Random(0, m.length);
+					//Add random unit to array of selected units
+					s.push(m[r]);
+					i = i + 1;
+				}
+			}
+			//Orders units tomove to random location
+			scope.order("AMove",s, enemyLoc);
+		}
 	}
 	else{
-		if (m.length > 4){
-			var i = 0;
-			while (i < 5){
-				r = Random(m.length);
-				//Add random unit to array of selected units
-				s.push(m[r]);
-				i = i + 1;
-			}
+		//If its beyond the first 10 minutes, scout around the map randomly
+		//Selects a random cordinate within the map.
+		var X = Random(0, w);
+		var Y = Random(0, h);
+		if (sq == false){
+			//if Squad is set to false, deploy only a single unit
+			r = Random(0, m.length)
+			s.push(m[r]);
+			scope.order("AMove",s,{x: X,y: Y},{shift: true});
 		}
-		//Orders units tomove to random location
-		scope.order("AMove",s,{x: X,y: Y});
+		else{
+			if (m.length > 4){
+				var i = 0;
+				while (i < 5){
+					r = Random(0, m.length);
+					//Add random unit to array of selected units
+					s.push(m[r]);
+					i = i + 1;
+				}
+			}
+			//Orders units tomove to random location
+			scope.order("AMove",s,{x: X,y: Y});
+		}
 	}
-
-
 	
-	
-
 }
 
 //Random Number Function - Note: Selection range begins at 0, and ends at max - 1
-function Random(max){
-    return Math.floor(Math.random()*max);
+function Random(min, max){
+    return Math.floor(scope.getRandomNumber(min, max));
 }
 
 //same as Random, but also decides if number is positive or negative
-function PosNeg(m){
-	var n = Random(m);
-	var Decision = Random(2);
-	if (Decision == 1){
+function PosNeg(mini, maxi){
+	var n = Random(mini, maxi);
+	var Decision = Random(0, 2);
+	if (Decision != 0 ){
 		n = n*1;
 	}
 	else{
@@ -423,7 +451,7 @@ function Repair(Build, Units){
 	var c = 0;//Variable controls loop to prevent infinite recursion
 	let selectedWorker;
 	do {
-		let i = Random(Units.length);
+		let i = Random(0, Units.length);
 		
 		if (Units[i].getCurrentOrderName() == "Mine" 
 		|| Units[i].getCurrentOrderName() =="Stop"){
@@ -467,9 +495,9 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		}
 		else{
 			//Assign a random Parent Object
-			p = Parent[Random(Parent.length)];
+			p = Parent[Random(0, Parent.length)];
 		}
-		var n = Random(u.length) ;//Aquires random index
+		var n = Random(0, u.length) ;//Aquires random index
 		var s = [];
 		var check = [];
 		var Cost = scope.getTypeFieldValue(b,"cost")*scope.frugal;//Aquires cost of building
@@ -507,8 +535,8 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 					//To build at a completely random location, user may intentionally leave the 
 					//Parent modifier empty while calling the function
 					//If Parent is undefined, a radius modifier will also not be added
-					X = Random(Width);
-					Y = Random(Height);
+					X = Random(0, Width);
+					Y = Random(0, Height);
 				}
 				else{
 					var g = 0;
@@ -518,8 +546,8 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						//Adds a randomly generated number within the radius 'r' to the existing coordinate
 						//Modifier 'm' serves as an inner radius to prevent construction within its boundary
 						//If user intends no inner radius, you can leave Mod parameter blank when calling function
-						X = p.getX() + PosNeg(r);
-						Y = p.getY() + PosNeg(r);
+						X = p.getX() + PosNeg(0, r);
+						Y = p.getY() + PosNeg(0, r);
 						//Following code checks if the new coordinate is too close to the structure
 						if (r > 0){
 							if ( (X <= si + m || X > Width) || (Y <= si + m || Y > Height)){
@@ -547,7 +575,7 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 					var check = false;
 					for(var i = 0; i < si; i++){
 						for(var z = 0; z < si; z++){
-							if (scope.getCommandFromCommandName(c).unitType.couldBePlacedAt(X + i, Y + z) == false){
+							if (scope.positionIsPathable(X + i, Y + z) == false){
 								//if position is invalid, check is false
 								check = false;
 								z = si;
@@ -577,12 +605,12 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 
 //Selects a random upgrade for Militia unit
 function unitUpg(){
-	var r = Random(2);
+	var r = Random(1, 2);
 	
-	if(r == 0){
+	if(r < 2){
 		scope.order("Attack Upgrade", forges);
 	}
-	if(r == 1){
+	else{
 		scope.order("Armor Upgrade", forges);
 	}
 
@@ -599,7 +627,7 @@ function Seige(eBuild, army){
 		}
 	}
 	attackQuips();
-	var t = targ[Random(targ.length)];
+	var t = targ[Random(0, targ.length)];
 	if (!t){
 	}
 	else{
@@ -622,7 +650,7 @@ function randBehavior(m, pn){
 	//check if the positive negative boolean is active
 	if(!pn){
 		//if number is intended to only be positive, use Random
-		n = Random(m);
+		n = Random(1, m);
 		if(n == 0 || n == 1){
 			//Ensures the number is not an invalid number
 			n = 2;
@@ -630,7 +658,7 @@ function randBehavior(m, pn){
 	}
 	else{
 		//if number is intended to be either positive or negative , use PosNeg
-		n = PosNeg(m);
+		n = PosNeg(1, m);
 		if(n == 0 || n == 1 || n == -1){
 			//Ensures the number is not an invalid number
 			n = 2;
@@ -656,7 +684,7 @@ function GetDist(obj1, obj2){
 //If the closest mine to the castle is farther than 9 units - build another castle nearby
 function newCastle(){
 	var closeMines = [];//stores an array of mines that are close to the castle
-	var d = castles[Random(castles.length)];
+	var d = castles[Random(0, castles.length)];
 	var rad = 40*scope.exspansion;
 	var sel = [];
 	if(castles.length > 0)
@@ -668,7 +696,7 @@ function newCastle(){
 			}
 		}
 		if(closeMines.length > 0){
-			sel[0] = closeMines[Random(closeMines.length)];
+			sel[0] = closeMines[Random(0, closeMines.length)];
 			RandBuild("Castle","Build Castle", workers, 4, sel, 11, 7);
 		}
 		else{
@@ -680,7 +708,7 @@ function newCastle(){
 //will be useful for maps in a similar style to Diag 1v1 ect.
 function plentiGold(){
 	var closeMines = [];//stores an array of mines that are close to the castle
-	var d = castles[Random(castles.length)];
+	var d = castles[Random(0, castles.length)];
 	var rad = 9
 	var sel = [];
 	if(castles.length > 0)
@@ -705,7 +733,7 @@ function plentiGold(){
 
 //Sends a preset message related to defense
 function defenseQuips(){
-	var choice = Random(100);
+	var choice = Random(0, 100);
 	if(choice < 30){
 		scope.chatMsg("Cowabunga it is");
 	}
@@ -719,14 +747,20 @@ function defenseQuips(){
 }
 //Sends a preset message related to Attack
 function attackQuips(){
-	var choice = Random(100);
-	if (enemyBuildings.length > 0){
+	var choice = Random(0, 100);
+	var trueEnemy = [];
+	for(i = 0; i < enemyBuildings.length; i++){
+		if(enemyBuildings[i].isNeutral() == false){
+			trueEnemy.push(enemyBuildings[i]);
+		}
+	}
+	if (trueEnemy.length > 0){
 		//used when the bot knows where a player building is located
 		if(choice < 30){
 			scope.chatMsg("I'm coming for you");
 		}
 		if(choice > 29 && choice < 60 ){
-			scope.chatMsg("You're already dead and you don't even know it yet");
+			scope.chatMsg("Maybe you should just surrender");
 		}
 		if(choice > 59 ){
 			scope.chatMsg("I found you...");
@@ -741,11 +775,21 @@ function attackQuips(){
 			scope.chatMsg("I'll find you...");
 		}
 		if(choice > 59 ){
-			scope.chatMsg("You'll have to show your self eventually");
+			scope.chatMsg("You could make this easier for both of us if you just surrender");
 		}
 	}
 
 }
 
-
+//Scans an array of allied units and removes all of the neutral entities
+function scanFriendly(){
+	var trueAlly = [];
+	var Allied = scope.getBuildings({enemyOf: !me, onlyFinished: true})
+	for(i = 0; i < Allied.length; i++){
+		if(Allied[i].isNeutral() == false){
+			trueAlly.push(Allied[i]);
+		}
+	}
+	return trueAlly;
+}
 
