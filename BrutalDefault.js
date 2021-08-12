@@ -10,7 +10,7 @@
 if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
 	scope.aggression = 1 + (1/randBehavior(10, true));//Controls the interval for aggresive actions
-	scope.frugal = 1 + (1/randBehavior(20));//Controls how much money the Computer wants to save
+	scope.frugal = 1 + (1/randBehavior(10));//Controls how much money the Computer wants to save
 	scope.intel = 1 + (1/randBehavior(10, true));//Controls the interval for scouting actions
 	scope.exspansion = 1 + (1/randBehavior(10, true));//Controls the interval for most building construction
 	scope.defensive = 1 + (1/randBehavior(10, true));//Controls interval for defensive actions
@@ -151,7 +151,7 @@ if (scout == true){
 //If the enemy is close to one of the computers buildings, send units to intercept.
 if(isBattle == true){
 	if(enemyUnits.length > 0 && allAllied.length > 0 && Army.length >= enemyUnits.length) {
-		var e = enemyUnits[Random(0,enemyUnits.length)]; //Only checks one enemy to prevent lag
+		var e = enemyUnits[Random(enemyUnits.length)]; //Only checks one enemy to prevent lag
 		for(var i = 0; i < allAllied.length; i++){
 			//For loop cycles through an array of all specified buildings
 			var b = allAllied[i];
@@ -194,10 +194,11 @@ if (workers.length > 0){
 	if (castleCheck == true && scope.plentyGold == false){
 		newCastle();
 	}
+	
 	//Deploys a worker to produce a House
 	if(houseCheck == true && time > 10 ){
 		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < 1 || (houses.length < Rax.length*2) || (scope.plentyGold == true && houses.length < (Rax.length*3))){
+		if (houses.length < 1 || (houses.length < Rax.length*2)){
 			RandBuild("House","Build House", workers, 3, castles, 12, 7);
 		}
 	}
@@ -237,7 +238,7 @@ else {
 }
 
 if (armyCheck == true){
-	var choice = Random(0,1000);//Generates a random number to act as a method of choosing a unit to build
+	var choice = Random(1000);//Generates a random number to act as a method of choosing a unit to build
 	if (choice < 400){
 		//Trains an Archer 35% of the time
 		TrainUnit(Rax, "Train Archer");
@@ -275,7 +276,7 @@ function startMine(){
 	var nearestDist = 99999;
 	var closeMines = [];
 	var selectedMine = null;
-	var d = castles[Random(0, castles.length)];
+	var d = castles[Random(castles.length)];
 	if(castles.length > 0)
 	{
 		
@@ -304,7 +305,7 @@ function startMine(){
 		if (idleWorkers[b].getCurrentOrderName() != "Repair"){
 			idle[0] = idleWorkers[b];
 		}
-		selectedMine = closeMines[Random(0, closeMines.length)];
+		selectedMine = closeMines[Random(closeMines.length)];
 		scope.order("Mine", idle, {unit: selectedMine});
 	}
 }
@@ -338,7 +339,7 @@ function Scout(width,height, unit,squad){
 	var s = []; // Empty array  - will be filled
 	var r = 0;;//Selects a random index.
 	//Grabs the start location of a random player
-	var enemyLoc = scope.getStartLocationForPlayerNumber(scope.playNum[Random(0, scope.playNum.length)]);
+	var enemyLoc = scope.getStartLocationForPlayerNumber(scope.playNum[Random(scope.playNum.length)]);
 	//Sorts out neutrals from enemy buildings array
 	var trueEnemy = [];
 	for(i = 0; i < enemyBuildings.length; i++){
@@ -350,7 +351,7 @@ function Scout(width,height, unit,squad){
 		//If the game is within the first 10 minutes, scout a random player's start location
 		if (sq == false){
 			//if Squad is set to false, deploy only a single unit
-			r = Random(0, m.length)
+			r = Random(m.length)
 			s.push(m[r]);
 			scope.order("AMove",s,enemyLoc,{shift: true});
 		}
@@ -358,7 +359,7 @@ function Scout(width,height, unit,squad){
 			if (m.length > 4){
 				var i = 0;
 				while (i < 5){
-					r = Random(0, m.length);
+					r = Random(m.length);
 					//Add random unit to array of selected units
 					s.push(m[r]);
 					i = i + 1;
@@ -371,11 +372,11 @@ function Scout(width,height, unit,squad){
 	else{
 		//If its beyond the first 10 minutes, scout around the map randomly
 		//Selects a random cordinate within the map.
-		var X = Random(0, w);
-		var Y = Random(0, h);
+		var X = Random(w);
+		var Y = Random(h);
 		if (sq == false){
 			//if Squad is set to false, deploy only a single unit
-			r = Random(0, m.length)
+			r = Random(m.length)
 			s.push(m[r]);
 			scope.order("AMove",s,{x: X,y: Y},{shift: true});
 		}
@@ -383,7 +384,7 @@ function Scout(width,height, unit,squad){
 			if (m.length > 4){
 				var i = 0;
 				while (i < 5){
-					r = Random(0, m.length);
+					r = Random(m.length);
 					//Add random unit to array of selected units
 					s.push(m[r]);
 					i = i + 1;
@@ -397,15 +398,15 @@ function Scout(width,height, unit,squad){
 }
 
 //Random Number Function - Note: Selection range begins at 0, and ends at max - 1
-function Random(min, max){
-    return Math.floor(scope.getRandomNumber(min, max));
+function Random(max){
+    return Math.floor(Math.random()*max);
 }
 
 //same as Random, but also decides if number is positive or negative
-function PosNeg(mini, maxi){
-	var n = Random(mini, maxi);
-	var Decision = Random(0, 10000);
-	if (Decision < 5000  ){
+function PosNeg(maxi){
+	var n = Random(maxi);
+	var Decision = Random(100);
+	if (Decision < 50){
 		n = n*1;
 	}
 	else{
@@ -453,7 +454,7 @@ function Repair(Build, Units){
 	var c = 0;//Variable controls loop to prevent infinite recursion
 	let selectedWorker;
 	do {
-		let i = Random(0, Units.length);
+		let i = Random(Units.length);
 		
 		if (Units[i].getCurrentOrderName() == "Mine" 
 		|| Units[i].getCurrentOrderName() =="Stop"){
@@ -489,7 +490,9 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		var c = command; //String value of build command
 		var u = Unit; //Imports Array of Units which can build the target structure
 		var si = size; //Size of building structure- Integer Value
-		
+		var X;
+		var Y;
+
 		var p = null;//Stores the array of parent objects
 		
 		if (!Parent || Parent.length == 0){
@@ -497,9 +500,10 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		}
 		else{
 			//Assign a random Parent Object
-			p = Parent[Random(0, Parent.length)];
+			p = Parent[Random(Parent.length)];
 		}
-		var n = Random(0, u.length) ;//Aquires random index
+
+		var n = Random(u.length) ;//Aquires random index
 		var s = [];
 		var check = [];
 		var Cost = scope.getTypeFieldValue(b,"cost")*scope.frugal;//Aquires cost of building
@@ -522,29 +526,25 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 			r = 1;
 		}
 		var order = s[0].getCurrentOrderName();//Gets current order for selected unit
+		for(var k = 0; k < 10; k++){
+			//Filters out builders who are building other structures
+			if(order == "Stop" || order == "Mine" && s.length > 0 && u.length > 0){
+				var b = 0;
 
-		//Filters out builders who are building other structures
-		if(order == "Stop" || order == "Mine" && s.length > 0 && u.length > 0){
-			var b = 0;
-
-			//Attempts to find a valid location 10 times
-			while (b < 10){
-				console.log("Test")
-				console.log("Player Number: ", me)
+				//Attempts to find a valid location 10 times
 				//Aquires Random Coordinates
-				var X;
-				var Y;
-				if(!Parent || Parent.length == 0){
+
+				if(!Parent || Parent.length < 1){
 					//If Parent is undefined or empty, build at a completely random position on map
 					//To build at a completely random location, user may intentionally leave the 
 					//Parent modifier empty while calling the function
 					//If Parent is undefined, a radius modifier will also not be added
-					X = Random(0, Width);
-					Y = Random(0, Height);
+					X = Random(Width);
+					Y = Random(Height);
 				}
+				
 				else{
-					var g = 0;
-					while (g == 0){
+					for(var g = 0; g < 50; g++){
 						//Assigns new coordinates if existing ones are invalid
 						//Grabs the coordinates of the parent object 'p'
 						//Adds a randomly generated number within the radius 'r' to the existing coordinate
@@ -555,24 +555,26 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						//Following code checks if the new coordinate is too close to the structure
 						if (r > 0){
 							if ( (X <= si + m || X > Width) || (Y <= si + m || Y > Height)){
-								g = 0;
+								g = g;
 							}
 							else{
-								g = 1;
+								g = 50;
 							}
 						}
 						else{
 							if ( (X <= si - m || X > Width) || (Y <= si - m || Y > Height)){
-								g = 0;
+								g = g;
 							}
 							else{
-								g = 1;
+								g = 50;
 							}
 						}
-						
-						
 					}
+					
+							
 				}
+			}
+			for(var b = 0; b < 50; b++){
 				//This part of the code determines if the structure can actually be built
 				if(gold >= Cost){
 					//scans the provided coordinates to determine if position is valid.
@@ -597,19 +599,20 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						//Code then breaks the overarching while loop to prevent infinite run time
 						scope.order("Stop", s);//Stops current Order
 						scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-						b = 10;//Exits While Loop
+						b = 50;//Exits Loop
+						k = 10;
 					}
 				}
-				b = b + 1;//Cycles While Loop and eventually ends it
 			}
-			
 		}
+		
+		
 }
 
 
 //Selects a random upgrade for Militia unit
 function unitUpg(){
-	var r = Random(0, 100);
+	var r = Random(100);
 	
 	if(r < 50){
 		scope.order("Attack Upgrade", forges);
@@ -631,7 +634,7 @@ function Seige(eBuild, army){
 		}
 	}
 	attackQuips();
-	var t = targ[Random(0, targ.length)];
+	var t = targ[Random(targ.length)];
 	if (!t){
 	}
 	else{
@@ -654,7 +657,7 @@ function randBehavior(m, pn){
 	//check if the positive negative boolean is active
 	if(!pn){
 		//if number is intended to only be positive, use Random
-		n = Random(1, m);
+		n = Random(m);
 		if(n == 0 || n == 1){
 			//Ensures the number is not an invalid number
 			n = 2;
@@ -662,7 +665,7 @@ function randBehavior(m, pn){
 	}
 	else{
 		//if number is intended to be either positive or negative , use PosNeg
-		n = PosNeg(1, m);
+		n = PosNeg(m);
 		if(n == 0 || n == 1 || n == -1){
 			//Ensures the number is not an invalid number
 			n = 2;
@@ -688,7 +691,7 @@ function GetDist(obj1, obj2){
 //If the closest mine to the castle is farther than 9 units - build another castle nearby
 function newCastle(){
 	var closeMines = [];//stores an array of mines that are close to the castle
-	var d = castles[Random(0, castles.length)];
+	var d = castles[Random(castles.length)];
 	var rad = 30*scope.exspansion;
 	var sel = [];
 	if(castles.length > 0)
@@ -700,7 +703,7 @@ function newCastle(){
 			}
 		}
 		if(closeMines.length > 0){
-			sel[0] = closeMines[Random(0, closeMines.length)];
+			sel[0] = closeMines[Random(closeMines.length)];
 			RandBuild("Castle","Build Castle", workers, 4, sel, 11, 7);
 		}
 		else{
@@ -712,7 +715,7 @@ function newCastle(){
 //will be useful for maps in a similar style to Diag 1v1 ect.
 function plentiGold(){
 	var closeMines = [];//stores an array of mines that are close to the castle
-	var d = castles[Random(0, castles.length)];
+	var d = castles[Random(castles.length)];
 	var rad = 9
 	var sel = [];
 	if(castles.length > 0)
@@ -737,7 +740,7 @@ function plentiGold(){
 
 //Sends a preset message related to defense
 function defenseQuips(){
-	var choice = Random(0, 100);
+	var choice = Random(100);
 	if(choice < 30){
 		scope.chatMsg("Cowabunga it is");
 	}
@@ -754,7 +757,7 @@ function defenseQuips(){
 }
 //Sends a preset message related to Attack
 function attackQuips(){
-	var choice = Random(0, 100);
+	var choice = Random(100);
 	var trueEnemy = [];
 	for(i = 0; i < enemyBuildings.length; i++){
 		if(enemyBuildings[i].isNeutral() == false){
