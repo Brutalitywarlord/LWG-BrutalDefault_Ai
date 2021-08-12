@@ -92,15 +92,15 @@ var birbCheck = false;
 var forgeCheck = false;
 
 //Sets the tickrate for each action the computer can do
-mineDelay = DecisionTick(3);
+mineDelay = DecisionTick(2);
 scout = DecisionTick(Math.floor(60*scope.intel));
 isBattle = DecisionTick(Math.floor(20*scope.defensive));
 isSiege = DecisionTick(Math.floor(180*scope.aggression));
 towerBuild = DecisionTick(Math.floor(50*scope.exspansion));
 workerCheck = DecisionTick(25);
 repCheck = DecisionTick(Math.floor(10*scope.defensive));
-houseCheck = DecisionTick(Math.floor(30*scope.exspansion));
-raxCheck = DecisionTick(Math.floor(20*scope.exspansion));
+houseCheck = DecisionTick(Math.floor(20*scope.exspansion));
+raxCheck = DecisionTick(Math.floor(25*scope.exspansion));
 armyCheck = DecisionTick(5);
 upgCheck = DecisionTick(Math.floor((120*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
@@ -133,13 +133,13 @@ if(birbCheck == true && birbs.length < 1 && time > 300 && scope.plentyGold == tr
 
 //Commands small army to move to random location
 if (scout == true){
-	if(birbs.length > 0 && time > 450){
+	if(birbs.length > 0 && time > 360){
 		//If a bird exists, use it for scouting
 		Scout(Width,Height,birbs, false);
 	}
 	else{
 		//If a bird doesn't exist, use a basic soldier instead - if one exists
-		if(time > 600 && Army.length > 0){
+		if(time > 360 && Army.length > 0){
 			var scouter = [];//Empty array to store the first unit in the array of units
 			scouter.push(Army[0]);
 			Scout(Width,Height, scouter, false);
@@ -194,21 +194,23 @@ if (workers.length > 0){
 	if (castleCheck == true && scope.plentyGold == false){
 		newCastle();
 	}
+	//Deploys a worker to produce a House
+	if(houseCheck == true && time > 10 ){
+		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
+		if (houses.length < 1 || (houses.length < Rax.length*2) || (scope.plentyGold == true && houses.length < (Rax.length*3))){
+			RandBuild("House","Build House", workers, 3, castles, 12, 7);
+		}
+	}
 	//Deploys a worker to produce a Barracks - Formula: 2 barracks per castle built.
 	if (raxCheck == true && (Rax.length < castles.length*2)){
 		RandBuild("Barracks","Build Barracks", workers, 3, castles, 10);
 	}
+
+	
 	//Deploys a worker to construct a Forge
-	if(forgeCheck == true && forges.length < 1 && (time > 450 || scope.plentyGold == true)){
+	if(forgeCheck == true && forges.length < 1 && (time > 360 || scope.plentyGold == true)){
 		RandBuild("Forge","Build Forge", workers, 3, castles, 15);
 		//After the in-game clock has reached 10 minutes, construct a Forge if possible
-	}
-	//Deploys a worker to produce a House
-	if(houseCheck == true && time > 10 ){
-		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < 1 || houses.length < (Rax.length*2) || scope.plentyGold == true ){
-			RandBuild("House","Build House", workers, 3, castles, 12, 7);
-		}
 	}
 	//Deploys a worker to construct a watchtower
 	if (towerBuild == true && Rax.length > 1 && castles.length < 2 && towers.length < 1 && scope.plentyGold == false){
@@ -235,8 +237,8 @@ else {
 }
 
 if (armyCheck == true){
-	var choice = Random(0,100);//Generates a random number to act as a method of choosing a unit to build
-	if (choice < 40){
+	var choice = Random(0,1000);//Generates a random number to act as a method of choosing a unit to build
+	if (choice < 400){
 		//Trains an Archer 35% of the time
 		TrainUnit(Rax, "Train Archer");
 	}
@@ -344,7 +346,7 @@ function Scout(width,height, unit,squad){
 			trueEnemy.push(enemyBuildings[i]);
 		}
 	}
-	if(time < 600 && trueEnemy.length < 1){
+	if(time < 720 && trueEnemy.length < 1){
 		//If the game is within the first 10 minutes, scout a random player's start location
 		if (sq == false){
 			//if Squad is set to false, deploy only a single unit
@@ -402,8 +404,8 @@ function Random(min, max){
 //same as Random, but also decides if number is positive or negative
 function PosNeg(mini, maxi){
 	var n = Random(mini, maxi);
-	var Decision = Random(0, 2);
-	if (Decision != 0 ){
+	var Decision = Random(0, 10000);
+	if (Decision < 5000  ){
 		n = n*1;
 	}
 	else{
@@ -527,6 +529,8 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 
 			//Attempts to find a valid location 10 times
 			while (b < 10){
+				console.log("Test")
+				console.log("Player Number: ", me)
 				//Aquires Random Coordinates
 				var X;
 				var Y;
@@ -605,9 +609,9 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 
 //Selects a random upgrade for Militia unit
 function unitUpg(){
-	var r = Random(1, 2);
+	var r = Random(0, 100);
 	
-	if(r < 2){
+	if(r < 50){
 		scope.order("Attack Upgrade", forges);
 	}
 	else{
@@ -685,7 +689,7 @@ function GetDist(obj1, obj2){
 function newCastle(){
 	var closeMines = [];//stores an array of mines that are close to the castle
 	var d = castles[Random(0, castles.length)];
-	var rad = 40*scope.exspansion;
+	var rad = 30*scope.exspansion;
 	var sel = [];
 	if(castles.length > 0)
 	{
@@ -784,7 +788,10 @@ function attackQuips(){
 
 }
 
-
+//Deploys random chatter to make the bot feel more interactive
+function randomChatter(){
+	
+}
 
 
 
