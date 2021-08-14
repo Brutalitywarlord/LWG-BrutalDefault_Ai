@@ -189,7 +189,7 @@ if (workerCheck == true && time > 40){
 }
 
 //Worker Commands
-if (workers.length > 0){
+if (workers.length > 0 && time > 5){
 	//Locates a nearby goldmine, then orders the construction of a new castle near it
 	if (castleCheck == true && scope.plentyGold == false){
 		newCastle();
@@ -199,7 +199,7 @@ if (workers.length > 0){
 	if(houseCheck == true && time > 10 ){
 		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
 		if (houses.length < 1 || (houses.length < Rax.length*2)){
-			RandBuild("House","Build House", workers, 3, castles, 12, 7);
+			RandBuild("House","Build House", workers, 3, castles, 14, 6);
 		}
 	}
 	//Deploys a worker to produce a Barracks - Formula: 2 barracks per castle built.
@@ -403,8 +403,8 @@ function Random(max){
 }
 
 //same as Random, but also decides if number is positive or negative
-function PosNeg(maxi){
-	var n = Random(maxi);
+function PosNeg(max){
+	var n = Random(max);
 	var Decision = Random(100);
 	if (Decision < 50){
 		n = n*1;
@@ -490,8 +490,10 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		var c = command; //String value of build command
 		var u = Unit; //Imports Array of Units which can build the target structure
 		var si = size; //Size of building structure- Integer Value
-		var X;
-		var Y;
+		var X = 0;
+		var Y = 0;
+		var thisCoord = [];
+		var pastCoord = [];
 
 		var p = null;//Stores the array of parent objects
 		
@@ -526,87 +528,93 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 			r = 1;
 		}
 		var order = s[0].getCurrentOrderName();//Gets current order for selected unit
-		for(var k = 0; k < 10; k++){
+		var k = 0
+		while(k < 10){
+			
 			//Filters out builders who are building other structures
 			if(order == "Stop" || order == "Mine" && s.length > 0 && u.length > 0){
-				var b = 0;
 
 				//Attempts to find a valid location 10 times
 				//Aquires Random Coordinates
 
-				if(!Parent || Parent.length < 1){
+				if(!Parent || Parent.length < 1 ){
 					//If Parent is undefined or empty, build at a completely random position on map
 					//To build at a completely random location, user may intentionally leave the 
 					//Parent modifier empty while calling the function
 					//If Parent is undefined, a radius modifier will also not be added
 					X = Random(Width);
 					Y = Random(Height);
+					
 				}
-				
 				else{
-					for(var g = 0; g < 50; g++){
-						//Assigns new coordinates if existing ones are invalid
-						//Grabs the coordinates of the parent object 'p'
-						//Adds a randomly generated number within the radius 'r' to the existing coordinate
-						//Modifier 'm' serves as an inner radius to prevent construction within its boundary
-						//If user intends no inner radius, you can leave Mod parameter blank when calling function
-						X = p.getX() + PosNeg(0, r);
-						Y = p.getY() + PosNeg(0, r);
-						//Following code checks if the new coordinate is too close to the structure
-						if (r > 0){
-							if ( (X <= si + m || X > Width) || (Y <= si + m || Y > Height)){
-								g = g;
-							}
-							else{
-								g = 50;
-							}
+					//Assigns new coordinates if existing ones are invalid
+					//Grabs the coordinates of the parent object 'p'
+					//Adds a randomly generated number within the radius 'r' to the existing coordinate
+					//Modifier 'm' serves as an inner radius to prevent construction within its boundary
+					//If user intends no inner radius, you can leave Mod parameter blank when calling function
+					X = p.getX() + PosNeg(r);
+					Y = p.getY() + PosNeg(r);
+					thisCoord[0] = X;
+					thisCoord[1] = Y;
+					
+					for(var l = 0; l < pastCoord.length; l++){
+						if(X == pastCoord[l][0] && Y == pastCoord[l][1]){
+							k = k+1;
 						}
 						else{
-							if ( (X <= si - m || X > Width) || (Y <= si - m || Y > Height)){
-								g = g;
+							pastCoord.push(thisCoord);
+							k = pastCoord.length
+						}
+					}
+					var closeCheck = 0;
+					while(closeCheck < 10){
+						//Following code checks if the new coordinate is too close to the structure
+						if (r > 0){
+							if ( (X <= si + m || X > Width) || (Y <= si + m || Y > Height) ||
+							(X <= si - m || X > Width) || (Y <= si - m || Y > Height)){
+								X = p.getX() + PosNeg(r);
+								Y = p.getY() + PosNeg(r);
+								closeCheck = closeCheck + 1;
 							}
 							else{
-								g = 50;
+								closeCheck = 20;
 							}
 						}
 					}
-					
-							
-				}
-			}
-			for(var b = 0; b < 50; b++){
-				//This part of the code determines if the structure can actually be built
-				if(gold >= Cost){
-					//scans the provided coordinates to determine if position is valid.
-					var check = false;
-					for(var i = 0; i < si; i++){
-						for(var z = 0; z < si; z++){
-							if (scope.positionIsPathable(X + i, Y + z) == false){
-								//if position is invalid, check is false
-								check = false;
-								z = si;
-								i = si;
+					//This part of the code determines if the structure can actually be built
+					if(gold >= Cost){
+						//scans the provided coordinates to determine if position is valid.
+						var check = false;
+						for(var i = 0; i < si; i++){
+							for(var z = 0; z < si; z++){
+								if (scope.positionIsPathable(X + i, Y + z) == false){
+									//if position is invalid, check is false
+									check = false;
+										z = si;
+										i = si;
+										
+								}
+								else{
+									check = true;
+								}
+							}			
+						}
 								
-							}
-							else{
-								check = true;
-							}
-						}			
-					}
-					
-					if (check == true){
-						//if position is valid, check is true, and an order is issued to build at location
-						//Code then breaks the overarching while loop to prevent infinite run time
-						scope.order("Stop", s);//Stops current Order
-						scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-						b = 50;//Exits Loop
-						k = 10;
+						if (check == true){
+							//if position is valid, check is true, and an order is issued to build at location
+								//Code then breaks the overarching while loop to prevent infinite run time
+								scope.order("Stop", s);//Stops current Order
+								scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
+								b = 50;//Exits Loop
+										k = 10;
+						}
 					}
 				}
+											
 			}
+			//Forces exit of the loop just for debugging purposes
+			k = k+1;
 		}
-		
-		
 }
 
 
