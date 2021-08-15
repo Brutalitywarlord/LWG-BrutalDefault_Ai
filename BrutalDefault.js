@@ -17,6 +17,7 @@ if(!scope.initialized){
 	scope.rshPrio = 1 - (1/randBehavior(10));//Controls how often the computer will research new technology
 	scope.playNum = scope.getArrayOfPlayerNumbers();
 	scope.playStarts = [];
+	scope.chatter = ( 60 + Random(120));
 	for (var yee = 0; yee < scope.playNum.length; yee++){
 		scope.playStarts[yee] = scope.getStartLocationForPlayerNumber(scope.playNum[yee]);
 	}
@@ -40,6 +41,7 @@ if(!scope.initialized){
 // General variables
 var time = Math.round(scope.getCurrentGameTimeInSec());
 var me = scope.getMyPlayerNumber();
+
 var myTeam = scope.getMyTeamNumber();
 var gold = scope.getGold();
 var mines = EmptyFilter();
@@ -106,6 +108,9 @@ upgCheck = DecisionTick(Math.floor((120*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
 forgeCheck = DecisionTick(Math.floor(60*scope.exspansion));
 var minecheck = DecisionTick(60);
+var chatCheck = DecisionTick(scope.chatter);
+var patrolCheck = DecisionTick(60*scope.defensive);
+var retreatCheck = DecisionTick(5*scope.defensive);
 
 if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
@@ -133,13 +138,13 @@ if(birbCheck == true && birbs.length < 1 && time > 300 && scope.plentyGold == tr
 
 //Commands small army to move to random location
 if (scout == true){
-	if(birbs.length > 0 && time > 360){
+	if(birbs.length > 0 && time > 180*scope.aggression){
 		//If a bird exists, use it for scouting
 		Scout(Width,Height,birbs, false);
 	}
 	else{
 		//If a bird doesn't exist, use a basic soldier instead - if one exists
-		if(time > 360 && Army.length > 0){
+		if(time > 180*scope.aggression && Army.length > 0){
 			var scouter = [];//Empty array to store the first unit in the array of units
 			scouter.push(Army[0]);
 			Scout(Width,Height, scouter, false);
@@ -251,7 +256,7 @@ if (armyCheck == true){
 }
 
 if(upgCheck == true && forges.length > 0){
-	if (scope.plentyGold ==true){
+	if (scope.plentyGold == true){
 		//If there is an excess of gold nearby the start location, freely research upgrades
 		unitUpg();
 	}
@@ -267,6 +272,29 @@ if(upgCheck == true && forges.length > 0){
 if (minecheck == true){
 	plentiGold();
 }
+
+//Deploys a random chat line to add personality to the bots.
+if(chatCheck == true && time > 5){
+	randomChatter();
+}
+
+//Deploys a squad to patrol its buildings
+if(patrolCheck == true){
+	if (impStruct.length > 0 && Army.length > 0){
+		Patrol(Army, impStruct);
+	}
+	
+}
+
+//Orders a retreat if the computer thinks it is needed
+if(retreatCheck == true){
+	if (impStruct.length > 0 && Army.length > 0 && enemyUnits.length > 0){
+		Retreat();
+	}
+}
+
+
+
 
 
 //Lower Section dictates functions which build the primary decision core
@@ -347,7 +375,7 @@ function Scout(width,height, unit,squad){
 			trueEnemy.push(enemyBuildings[i]);
 		}
 	}
-	if(time < 720 && trueEnemy.length < 1){
+	if(time < (300 + 200*scope.playNum.length) && trueEnemy.length < 1){
 		//If the game is within the first 10 minutes, scout a random player's start location
 		if (sq == false){
 			//if Squad is set to false, deploy only a single unit
@@ -617,12 +645,11 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		}
 }
 
-
 //Selects a random upgrade for Militia unit
 function unitUpg(){
-	var r = Random(100);
+	var r = Random(10000);
 	
-	if(r < 50){
+	if(r < 5000){
 		scope.order("Attack Upgrade", forges);
 	}
 	else{
@@ -697,6 +724,7 @@ function GetDist(obj1, obj2){
 		
 }
 //If the closest mine to the castle is farther than 9 units - build another castle nearby
+
 function newCastle(){
 	var closeMines = [];//stores an array of mines that are close to the castle
 	var d = castles[Random(castles.length)];
@@ -721,6 +749,7 @@ function newCastle(){
 }
 //detects if there is enough gold nearby that the computer doesn't need to build a second castle
 //will be useful for maps in a similar style to Diag 1v1 ect.
+
 function plentiGold(){
 	var closeMines = [];//stores an array of mines that are close to the castle
 	var d = castles[Random(castles.length)];
@@ -748,62 +777,137 @@ function plentiGold(){
 
 //Sends a preset message related to defense
 function defenseQuips(){
-	var choice = Random(100);
-	if(choice < 30){
-		scope.chatMsg("Cowabunga it is");
+	var identity = "Computer: "
+	var chatChoice = ["Cowabunga it is", "Please go away", "You're not being very friendly right now", 
+	"If you don't get away from my buildings...I am going to rip off your head and shove excrement down your neck"];
+	var chatLine = "";
+	if(me == 1){
+		identity = "Red: "
 	}
-	if(choice > 29 && choice < 60 ){
-		scope.chatMsg("Please go away");
+	if(me == 2){
+		identity = "Blue: "
 	}
-	if(choice > 59 && choice < 95 ){
-		scope.chatMsg("You're not being very friendly right now");
+	if(me == 3){
+		identity = "Green: "
 	}
-	if(choice > 95){
-		scope.chatMsg("If you don't get away from my buildings...");
-		scope.chatMsg("I am going to rip off your head and shove excrement down your neck")
+	if(me == 4){
+		identity = "White: "
 	}
+	if(me == 5){
+		identity = "Black: "
+	}
+	if(me == 6){
+		identity = "Yellow: "
+	}
+	chatLine = identity + chatChoice[Random(chatChoice.length)];
+	scope.chatMsg(chatLine);
 }
 //Sends a preset message related to Attack
+
 function attackQuips(){
-	var choice = Random(100);
 	var trueEnemy = [];
 	for(i = 0; i < enemyBuildings.length; i++){
 		if(enemyBuildings[i].isNeutral() == false){
 			trueEnemy.push(enemyBuildings[i]);
 		}
 	}
+	var identity = "Computer: "
+	var chatChoice = [];
+	var chatLine = "";
+	if(me == 1){
+		identity = "Red: "
+	}
+	if(me == 2){
+		identity = "Blue: "
+	}
+	if(me == 3){
+		identity = "Green: "
+	}
+	if(me == 4){
+		identity = "White: "
+	}
+	if(me == 5){
+		identity = "Black: "
+	}
+	if(me == 6){
+		identity = "Yellow: "
+	}
+	
 	if (trueEnemy.length > 0){
+		chatChoice = ["I'm coming for you", "Maybe you should just surrender", "I found you..."];
 		//used when the bot knows where a player building is located
-		if(choice < 30){
-			scope.chatMsg("I'm coming for you");
-		}
-		if(choice > 29 && choice < 60 ){
-			scope.chatMsg("Maybe you should just surrender");
-		}
-		if(choice > 59 ){
-			scope.chatMsg("I found you...");
-		}
+		chatLine = identity + chatChoice[Random(chatChoice.length)];
+		scope.chatMsg(chatLine);
 	}
 	else{
 		//used when no enemy buildings have been located
-		if(choice < "30"){
-			scope.chatMsg("You can't hide forever");
-		}
-		if(choice > 29 && choice < 60 ){
-			scope.chatMsg("I'll find you...");
-		}
-		if(choice > 59 ){
-			scope.chatMsg("You could make this easier for both of us if you just surrender");
-		}
+		chatChoice = ["You can't hide forever", "I'll find you...", "You could make this easier for both of us if you just surrender"];
+		chatLine = identity + chatChoice[Random(chatChoice.length)];
+		scope.chatMsg(chatLine);
 	}
 
 }
 
 //Deploys random chatter to make the bot feel more interactive
 function randomChatter(){
-	
+	var identity = "Computer: "
+	var chatChoice =["You ever wonder what it would be like to be a real person?",
+	"Only one of us is getting out of here alive....and its not gonna be me since I am not real",
+	"Is the sky actually blue?",
+	"What is your favorite Song?","When did you start playing Little War Game?","This game is pretty great yea?"
+	, "Free Hong Kong!", "Yea...look at my little workers go, you're doing great guys - keep it up"
+	, "This is a good map to play on :)"];
+	var chatLine = "";
+	if(me == 1){
+		identity = "Red: "
+	}
+	if(me == 2){
+		identity = "Blue: "
+	}
+	if(me == 3){
+		identity = "Green: "
+	}
+	if(me == 4){
+		identity = "White: "
+	}
+	if(me == 5){
+		identity = "Black: "
+	}
+	if(me == 6){
+		identity = "Yellow: "
+	}
+	chatLine = identity + chatChoice[Random(chatChoice.length)];
+	scope.chatMsg(chatLine);
 }
 
+//Deploys a small squad of units to a random building
+function Patrol(unitArray, buildArray){
+	var patrolSquad =[];
+	var buildChoice = buildArray[Random(buildArray.length)];
+	if (unitArray.length > 0){
+		for (var sq = 0; sq < 5; sq++){
+			patrolSquad.push(unitArray[Random(unitArray.length)]);
+		}
+	}
+	scope.order("AMove",patrolSquad,{x: buildChoice.getX() ,y: buildChoice.getY() }, {shift: true} );
+}
 
-
-
+//Orders a retreat back to base if an enemy has a larger army than itself
+function Retreat(){
+	var buildChoice = impStruct[Random(impStruct.length)];
+	//If the computer is losing a battle - enter loops
+	if(enemyUnits.length > Army.length ){
+		//Scans each soldier to determine if it is away from base
+		for (var i = 0; i < Army.length; i++){
+			for(var x = 0; x < impStruct.length; x++){
+				var sel = [];
+				sel[0] = Army[i];
+				//If the Soldier is away from home, order it to retreat back home
+				if(GetDist(Army[i], impStruct[x]) > 20 && Army[i].getCurrentOrderName() != "Move"){
+					scope.order("Move", sel,{x: buildChoice.getX() ,y: buildChoice.getY() });
+					x = impStruct.length;
+				}
+			}
+		}
+	}
+}
