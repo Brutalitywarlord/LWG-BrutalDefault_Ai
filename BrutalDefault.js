@@ -4,7 +4,37 @@
 //As a result of increased dependancy on RNG - this bot is more versatile, and variable in its behavior
 //Than the current default AI for LWG - although this current iteration still struggles to defeat the current model.
 
+//
+if (!game.rngFixed) {
+  function xmur3(str) {
+    for(var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
+      h = Math.imul(h ^ str.charCodeAt(i), 3432918353),
+      h = h << 13 | h >>> 19;
+    return function() {
+      h = Math.imul(h ^ h >>> 16, 2246822507);
+      h = Math.imul(h ^ h >>> 13, 3266489909);
+      return (h ^= h >>> 16) >>> 0;
+    }
+  }
 
+  function mulberry32(a) {
+    return function() {
+      var t = a += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+  }
+
+  const rand = mulberry32(xmur3('urMomGay' + game.aiRandomizer)());
+  
+  Scope.prototype.random = rand;
+  Scope.prototype.getRandomNumber = (min, max) => {
+    return rand()*(max-min) + min;
+  }
+
+  game.rngFixed = true;
+}
 
 //Initialization scope - sets variables for use in behavioural augmentations
 if(!scope.initialized){
@@ -74,6 +104,9 @@ var birbs = scope.getUnits({type: "Bird", player: me});
 
 //Variables to store arrays of enemy objects
 var enemyUnits = scope.getUnits({enemyOf: me});
+var enemyArcher = scope.getUnits({type: "Archer", enemyOf: me});
+var enemySoldier = scope.getUnits({type: "Soldier", enemyOf: me});
+var enemyArmy = enemyArcher.concat(enemySoldier);
 var enemyBuildings = scope.getBuildings({enemyOf: me});
 var Goldmines = scope.getBuildings({type: "Goldmine"});
 
@@ -286,12 +319,6 @@ if(patrolCheck == true){
 	
 }
 
-//Orders a retreat if the computer thinks it is needed
-if(retreatCheck == true){
-	if (impStruct.length > 0 && Army.length > 0 && enemyUnits.length > 0){
-		Retreat();
-	}
-}
 
 
 
@@ -427,7 +454,7 @@ function Scout(width,height, unit,squad){
 
 //Random Number Function - Note: Selection range begins at 0, and ends at max - 1
 function Random(max){
-    return Math.floor(Math.random()*max);
+    return Math.floor(scope.getRandomNumber(0,max));
 }
 
 //same as Random, but also decides if number is positive or negative
@@ -896,7 +923,7 @@ function Patrol(unitArray, buildArray){
 function Retreat(){
 	var buildChoice = impStruct[Random(impStruct.length)];
 	//If the computer is losing a battle - enter loops
-	if(enemyUnits.length > Army.length ){
+	if(enemyArmy.length > Army.length ){
 		//Scans each soldier to determine if it is away from base
 		for (var i = 0; i < Army.length; i++){
 			for(var x = 0; x < impStruct.length; x++){
@@ -911,3 +938,7 @@ function Retreat(){
 		}
 	}
 }
+
+
+
+
