@@ -39,6 +39,8 @@ if (!game.rngFixed) {
 //Initialization scope - sets variables for use in behavioural augmentations
 if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
+	scope.behavior = ["Rax","MageScum"];
+	//scope.strategy = scope.behavior[Random(scope.behavior.length)];
 	scope.aggression = 1 + (1/randBehavior(10, true));//Controls the interval for aggresive actions
 	scope.frugal = 1 + (1/randBehavior(10));//Controls how much money the Computer wants to save
 	scope.intel = 1 + (1/randBehavior(10, true));//Controls the interval for scouting actions
@@ -90,16 +92,18 @@ var castles = scope.getBuildings({type: "Castle", player: me, onlyFinished: true
 var houses = scope.getBuildings({type: "House", player: me, onlyFinished: true});
 var towers = scope.getBuildings({type: "Watchtower", player: me, onlyFinished: true});
 var Rax = scope.getBuildings({type: "Barracks", player: me, onlyFinished: true});
-var forges = scope.getBuildings({type: "Forge", player: me, onlyFinished: true});
+var forges = scope.getBuildings({type: "Forge", player: me, onlyFinshed: true});
+var guilds = scope.getBuildings({type: "Mages Guild", player: me, onlyFinished: true});
 var impStruct = castles.concat(houses.concat(towers.concat(Rax)))
-var allAllied = scope.getBuildings({team: myTeam, onlyFinished: true});
+var allAllied = scope.getBuildings({team: myTeam, onlyFinshed: true});
 
 //Variables to locate Computer owned units
 var idleWorkers = scope.getUnits({type: "Worker", player: me, order: "Stop"});
 var workers = scope.getUnits({type: "Worker", player: me});
 var Soldier = scope.getUnits({type: "Soldier", player: me});
 var Archer = scope.getUnits({type: "Archer", player: me});
-var Army = Soldier.concat(Archer);
+var Mage = scope.getUnits({type: "Mage", player: me});
+var Army = Soldier.concat(Archer.concat(Mage));
 var birbs = scope.getUnits({type: "Bird", player: me});
 
 //Variables to store arrays of enemy objects
@@ -132,11 +136,11 @@ scout = DecisionTick(Math.floor(60*scope.intel));
 isBattle = DecisionTick(Math.floor(10*scope.defensive));
 isSiege = DecisionTick(Math.floor(180*scope.aggression));
 towerBuild = DecisionTick(Math.floor(50*scope.exspansion));
-workerCheck = DecisionTick(25);
+workerCheck = DecisionTick(25/scope.exspansion);
 repCheck = DecisionTick(Math.floor(15*scope.defensive));
 houseCheck = DecisionTick(Math.floor(20*scope.exspansion));
 raxCheck = DecisionTick(Math.floor(25*scope.exspansion));
-armyCheck = DecisionTick(5);
+armyCheck = DecisionTick(15/(scope.exspansion));
 upgCheck = DecisionTick(Math.floor((45*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
 forgeCheck = DecisionTick(Math.floor(60*scope.exspansion));
@@ -144,6 +148,11 @@ var minecheck = DecisionTick(60);
 var chatCheck = DecisionTick(scope.chatter);
 var patrolCheck = DecisionTick(60*scope.defensive);
 var retreatCheck = DecisionTick(5*scope.defensive);
+var guildCheck = DecisionTick(40*scope.exspansion);
+var mageCheck = DecisionTick(15);
+var ballCheck = DecisionTick(10);
+var constructionCheck = DecisionTick(60);
+var busterCheck = DecisionTick(5);
 
 if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
@@ -206,13 +215,20 @@ if(isBattle == true){
 	}
 }
 //Declares an attack against a random enemy building 
-if(isSiege == true && (castles.length > 1 || scope.plentyGold == true)){
+if(isSiege == true && (castles.length > 1 || scope.plentyGold == true || time > 60*scope.playNum.length)){
 	if(Army.length > 10){
 		//If the computer has at least 10 soldiers, and knows the enemies location...
 		//Attack the enemy
 		Seige(enemyBuildings, Army);
 	}
 }
+
+//calls the function to enable Mage fireball use
+if(busterCheck == true && Mage.length> 0){
+	ballBuster();
+}
+
+
 //If Comptuers worker count is too small - make more workers
 if (workerCheck == true && time > 40){
 	if (workers.length < 10){
@@ -244,12 +260,14 @@ if (workers.length > 0 && time > 5){
 	if (raxCheck == true && (Rax.length < castles.length*2)){
 		RandBuild("Barracks","Build Barracks", workers, 3, castles, 10);
 	}
-
+	//Deploys a worker to construct a Mages Guild
+	if(guildCheck == true && guilds.length < 1 && Rax.length > 0){
+		RandBuild("Mages Guild","Build Mages Guild", workers, 3, castles, 10);
+	}
 	
 	//Deploys a worker to construct a Forge
-	if(forgeCheck == true && forges.length < 1 && (time > 360 || scope.plentyGold == true)){
+	if(forgeCheck == true && forges.length < 1 && (time > 240 || scope.plentyGold == true)){
 		RandBuild("Forge","Build Forge", workers, 3, castles, 15);
-		//After the in-game clock has reached 10 minutes, construct a Forge if possible
 	}
 	//Deploys a worker to construct a watchtower
 	if (towerBuild == true && Rax.length > 1 && castles.length < 2 && towers.length < 1 && scope.plentyGold == false){
@@ -268,6 +286,11 @@ if (workers.length > 0 && time > 5){
 			Repair(allBuild, workers);
 		}
 	}
+	//Deploys a worker to continue construction on unfinished buildings
+	if(constructionCheck == true){
+		contBuild();
+	}
+
 
 	
 }
@@ -275,6 +298,16 @@ else {
 	TrainUnit(castles,"Worker")
 }
 
+//Researches fireball if the Mages Guild has been made
+if(ballCheck == true && guilds.length > 0){
+	scope.order("Research Fireball", guilds);
+}
+
+//Trains up to three mages if there is a Mages guild.
+if (guilds.length > 0 && mageCheck == true && Mage.length < 3){
+		TrainUnit(Rax, "Train Mage");
+}
+//Trains the basic Rax Units
 if (armyCheck == true){
 	var choice = Random(1000);//Generates a random number to act as a method of choosing a unit to build
 	if (choice < 400){
@@ -285,6 +318,7 @@ if (armyCheck == true){
 		//Trains an Soldier 65% of the time
 		TrainUnit(Rax, "Train Soldier");
 	}
+	
 	
 }
 
@@ -461,7 +495,7 @@ function Random(max){
 function PosNeg(max){
 	var n = Random(max);
 	var Decision = Random(100);
-	if (Decision < 50){
+	if (Decision < 51){
 		n = n*1;
 	}
 	else{
@@ -753,23 +787,36 @@ function GetDist(obj1, obj2){
 //If the closest mine to the castle is farther than 9 units - build another castle nearby
 
 function newCastle(){
+	var nearestDist = 99999;
 	var closeMines = [];//stores an array of mines that are close to the castle
 	var d = castles[Random(castles.length)];
-	var rad = 30*scope.exspansion;
 	var sel = [];
+	for(var i = 0; i < mines.length; i++){
+		// get nearest goldmine that is not right next to the castle
+		var mine = mines[i];
+		var dist = GetDist(d, mine);
+		if(dist < nearestDist && dist > 14)
+		{
+			nearestDist = dist;
+		}
+	}
+	for(var i = 0; i < mines.length; i++){
+		//add the next closest goldmine to the array
+		var mine = mines[i];
+		var distance = GetDist(d, mine);
+		if(distance <= nearestDist + 2){
+			closeMines.push(mine);
+		}
+	}
 	if(castles.length > 0)
 	{
-		//Cycle through all known active goldmines and find those within a certain distance of the castle.
-		for(var g = 0; g < mines.length; g++){
-			if (GetDist(d, mines[g]) < rad && GetDist(d, mines[g]) > 10){
-				closeMines.push(mines[g]);
-			}
-		}
 		if(closeMines.length > 0){
+			//If the computer found the next closest gold mine - build next to it
 			sel[0] = closeMines[Random(closeMines.length)];
 			RandBuild("Castle","Build Castle", workers, 4, sel, 11, 7);
 		}
 		else{
+			//if there was no valid parent found, just build at a random goldmine
 			RandBuild("Castle","Build Castle", workers, 4, mines, 11, 7);
 		}
 	}
@@ -860,19 +907,11 @@ function attackQuips(){
 		identity = "Yellow: "
 	}
 	
-	if (trueEnemy.length > 0){
-		chatChoice = ["I'm coming for you", "Maybe you should just surrender", "I found you..."];
-		//used when the bot knows where a player building is located
-		chatLine = identity + chatChoice[Random(chatChoice.length)];
-		scope.chatMsg(chatLine);
-	}
-	else{
-		//used when no enemy buildings have been located
+	if (trueEnemy.length < 1){
 		chatChoice = ["You can't hide forever", "I'll find you...", "You could make this easier for both of us if you just surrender"];
 		chatLine = identity + chatChoice[Random(chatChoice.length)];
 		scope.chatMsg(chatLine);
 	}
-
 }
 
 //Deploys random chatter to make the bot feel more interactive
@@ -939,6 +978,39 @@ function Retreat(){
 	}
 }
 
+//If there are unfinished building, this function will order a worker to continue construction
+function contBuild(){
+	var unbuilt = [];
+	for(var b= 0; b < allBuild.length; b++){
+		if(allBuild[b].isUnderConstruction() == true){
+			unbuilt.push(allBuild[b]);
+		}
+	}
+	var sel = [];
+	sel[0] = workers[Random(workers.length)];
+	if(unbuilt.length > 0){
+		scope.order("Stop", sel);
+		for (var i = 0; i < unbuilt.length; i++){
+			scope.order("Moveto", sel, {unit: unbuilt[i]}, {shift: true})
+		}
+	}
+	
+}
 
-
-
+//controls how the mages will use their fireball attack if it exists
+function ballBuster(){
+	var nearEnemies = [];
+	for(var m = 0; m < Mage.length; m++){
+		for(var e = 0; e < enemyUnits.length; e++){
+			if(GetDist(Mage[m], enemyUnits[e]) < 15) {
+				nearEnemies.push(enemyUnits[e]);
+			}
+		}
+		if(nearEnemies.length > 0 && Mage.length> 0){
+			var mageSel = [];
+			var eSel = nearEnemies[Random(nearEnemies.length)];
+			mageSel[0] = Mage[m];
+			scope.order("Fireball", mageSel,{x: eSel.getX(), y: eSel.getY()})
+		}
+	}
+}
