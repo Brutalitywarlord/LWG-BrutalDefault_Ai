@@ -39,17 +39,16 @@ if (!game.rngFixed) {
 //Initialization scope - sets variables for use in behavioural augmentations
 if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
-	scope.behavior = ["Rax","MageScum"];
-	//scope.strategy = scope.behavior[Random(scope.behavior.length)];
+	scope.behavior = ["Rax", "Skirmishers"];
+	scope.strategy = scope.behavior[Random(scope.behavior.length)];
 	scope.aggression = 1 + (1/randBehavior(10, true));//Controls the interval for aggresive actions
 	scope.frugal = 1 + (1/randBehavior(10));//Controls how much money the Computer wants to save
-	scope.intel = 1 + (1/randBehavior(10, true));//Controls the interval for scouting actions
-	scope.exspansion = 1 + (1/randBehavior(10, true));//Controls the interval for most building construction
+	scope.expansion = 1 + (1/randBehavior(10, true));//Controls the interval for most building construction
 	scope.defensive = 1 + (1/randBehavior(10, true));//Controls interval for defensive actions
 	scope.rshPrio = 1 - (1/randBehavior(10));//Controls how often the computer will research new technology
 	scope.playNum = scope.getArrayOfPlayerNumbers();
 	scope.playStarts = [];
-	scope.chatter = ( 60 + Random(120));
+	scope.chatter = ( 60 + Random(300));
 	for (var yee = 0; yee < scope.playNum.length; yee++){
 		scope.playStarts[yee] = scope.getStartLocationForPlayerNumber(scope.playNum[yee]);
 	}
@@ -58,9 +57,8 @@ if(!scope.initialized){
 	//Logs all the behavioral variables in the console.
 	console.log("Strategy: ", scope.strategy);
 	console.log("Aggression: ", scope.aggression);
-	console.log("Frugal: ", scope.frugal);
-	console.log("Intel: ", scope.intel);
-	console.log("Exspansion: ", scope.exspansion);
+	console.log("Greed: ", scope.frugal);
+	console.log("Expansion: ", scope.expansion);
 	console.log("Defensive: ", scope.defensive);
 	console.log("Research Priority: ", scope.rshPrio);
 	console.log("------------------");
@@ -94,6 +92,7 @@ var towers = scope.getBuildings({type: "Watchtower", player: me, onlyFinished: t
 var Rax = scope.getBuildings({type: "Barracks", player: me, onlyFinished: true});
 var forges = scope.getBuildings({type: "Forge", player: me, onlyFinshed: true});
 var guilds = scope.getBuildings({type: "Mages Guild", player: me, onlyFinished: true});
+var churches = scope.getBuildings({type: "Church", player: me, onlyFinished: true});
 var impStruct = castles.concat(houses.concat(towers.concat(Rax)))
 var allAllied = scope.getBuildings({team: myTeam, onlyFinshed: true});
 
@@ -103,7 +102,9 @@ var workers = scope.getUnits({type: "Worker", player: me});
 var Soldier = scope.getUnits({type: "Soldier", player: me});
 var Archer = scope.getUnits({type: "Archer", player: me});
 var Mage = scope.getUnits({type: "Mage", player: me});
-var Army = Soldier.concat(Archer.concat(Mage));
+var Priest = scope.getUnits({type: "Priest", player: me});
+var Raider = scope.getUnits({type: "Raider", player: me});
+var Army = Soldier.concat(Archer.concat(Mage.concat(Raider.concat(Priest))));
 var birbs = scope.getUnits({type: "Bird", player: me});
 
 //Variables to store arrays of enemy objects
@@ -132,27 +133,29 @@ var forgeCheck = false;
 
 //Sets the tickrate for each action the computer can do
 mineDelay = DecisionTick(2);
-scout = DecisionTick(Math.floor(60*scope.intel));
+scout = DecisionTick(Math.floor(60*scope.aggression));
 isBattle = DecisionTick(Math.floor(10*scope.defensive));
 isSiege = DecisionTick(Math.floor(180*scope.aggression));
-towerBuild = DecisionTick(Math.floor(50*scope.exspansion));
-workerCheck = DecisionTick(25/scope.exspansion);
+towerBuild = DecisionTick(Math.floor(50*scope.expansion));
+workerCheck = DecisionTick(25/scope.expansion);
 repCheck = DecisionTick(Math.floor(15*scope.defensive));
-houseCheck = DecisionTick(Math.floor(20*scope.exspansion));
-raxCheck = DecisionTick(Math.floor(25*scope.exspansion));
-armyCheck = DecisionTick(15/(scope.exspansion));
+houseCheck = DecisionTick(Math.floor(20*scope.expansion));
+raxCheck = DecisionTick(Math.floor(25*scope.expansion));
+armyCheck = DecisionTick(15/(scope.expansion));
 upgCheck = DecisionTick(Math.floor((45*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
-forgeCheck = DecisionTick(Math.floor(60*scope.exspansion));
+forgeCheck = DecisionTick(Math.floor(60*scope.expansion));
 var minecheck = DecisionTick(60);
 var chatCheck = DecisionTick(scope.chatter);
 var patrolCheck = DecisionTick(60*scope.defensive);
 var retreatCheck = DecisionTick(5*scope.defensive);
-var guildCheck = DecisionTick(40*scope.exspansion);
-var mageCheck = DecisionTick(15);
-var ballCheck = DecisionTick(10);
+var guildCheck = DecisionTick(40*scope.expansion);
+var rshCheck = DecisionTick(20*scope.rshPrio);
 var constructionCheck = DecisionTick(60);
 var busterCheck = DecisionTick(5);
+var flashCheck = DecisionTick(7);
+var invisCheck = DecisionTick(5);
+var churchCheck = DecisionTick(40*scope.expansion);
 
 if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
@@ -161,7 +164,7 @@ if(castles.length < 2 && time > 60){
 }
 else{
 	//After a second castle is built, tickrate is modified to give less priority to building castles
-	castleCheck = DecisionTick(180 * scope.exspansion);
+	castleCheck = DecisionTick(180 * scope.expansion);
 }
 
 //gives a mining command to any idle workers
@@ -215,7 +218,7 @@ if(isBattle == true){
 	}
 }
 //Declares an attack against a random enemy building 
-if(isSiege == true && (castles.length > 1 || scope.plentyGold == true || time > 60*scope.playNum.length)){
+if(isSiege == true && (castles.length > 1 || scope.plentyGold == true || time > (60*scope.aggression)*scope.playNum.length)){
 	if(Army.length > 10){
 		//If the computer has at least 10 soldiers, and knows the enemies location...
 		//Attack the enemy
@@ -228,12 +231,24 @@ if(busterCheck == true && Mage.length> 0){
 	ballBuster();
 }
 
+//calls the function to enable raider flash use
+if(flashCheck == true && Raider.length > 0){
+	Flash();
+}
+//calls the function to enable Mage fireball use
+if(invisCheck == true && Priest.length > 0){
+	Invisibility();
+}
 
 //If Comptuers worker count is too small - make more workers
 if (workerCheck == true && time > 40){
-	if (workers.length < 10){
-		//Maintains a supply of 10 workers at all times
+	if(scope.plentyGold == true && workers.length < 13){
 		TrainUnit(castles,"Train Worker");
+	}
+	if (workers.length < 10 && scope.plentyGold == false){
+		TrainUnit(castles,"Train Worker");
+		
+		
 	}
 	if (workers.length < 7 * castles.length){
 		//Will maintain a supply 7 workers per castle built
@@ -252,21 +267,28 @@ if (workers.length > 0 && time > 5){
 	//Deploys a worker to produce a House
 	if(houseCheck == true && time > 10 ){
 		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < 1 || (houses.length < Rax.length*2)){
+		if (houses.length < 1 || ((houses.length < Rax.length*2 && scope.plentyGold == false) ||
+		(houses.length < Rax.length*3 && scope.plentyGold == true))){
 			RandBuild("House","Build House", workers, 3, castles, 14, 6);
 		}
 	}
 	//Deploys a worker to produce a Barracks - Formula: 2 barracks per castle built.
-	if (raxCheck == true && (Rax.length < castles.length*2)){
+	if (raxCheck == true && 
+	((Rax.length < castles.length*2 && scope.plentyGold == false) || 
+	(Rax.length < castles.length*3 && scope.plentyGold == true))){
 		RandBuild("Barracks","Build Barracks", workers, 3, castles, 10);
 	}
 	//Deploys a worker to construct a Mages Guild
-	if(guildCheck == true && guilds.length < 1 && Rax.length > 0){
+	if(guildCheck == true && scope.strategy == "Rax" && guilds.length < 1 && Rax.length > 0){
 		RandBuild("Mages Guild","Build Mages Guild", workers, 3, castles, 10);
 	}
-	
+	//Deploys a worker to construct a Mages Guild
+	if(churchCheck == true && scope.strategy == "Skirmishers" && churches.length < 1 && Rax.length > 0){
+		RandBuild("Church","Build Church", workers, 3, castles, 10);
+	}
 	//Deploys a worker to construct a Forge
-	if(forgeCheck == true && forges.length < 1 && (time > 240 || scope.plentyGold == true)){
+	if(forgeCheck == true && scope.strategy == "Rax" && forges.length < 1 
+	&& (time > 240 || scope.plentyGold == true)){
 		RandBuild("Forge","Build Forge", workers, 3, castles, 15);
 	}
 	//Deploys a worker to construct a watchtower
@@ -298,28 +320,79 @@ else {
 	TrainUnit(castles,"Worker")
 }
 
-//Researches fireball if the Mages Guild has been made
-if(ballCheck == true && guilds.length > 0){
-	scope.order("Research Fireball", guilds);
+//Researches spells required to for certain strategies to function
+if(rshCheck == true){
+	if(guilds.length > 0 && scope.strategy == "Rax"){
+		scope.order("Research Fireball", guilds);
+	}
+	if(churches.length > 0 && scope.strategy == "Skirmishers"){
+		scope.order("Research Invisibility", churches);
+	}
 }
 
-//Trains up to three mages if there is a Mages guild.
-if (guilds.length > 0 && mageCheck == true && Mage.length < 3){
-		TrainUnit(Rax, "Train Mage");
-}
 //Trains the basic Rax Units
 if (armyCheck == true){
 	var choice = Random(1000);//Generates a random number to act as a method of choosing a unit to build
-	if (choice < 400){
-		//Trains an Archer 35% of the time
-		TrainUnit(Rax, "Train Archer");
+	if(scope.strategy == "Rax"){
+		if(guilds.length > 0){
+			if (choice < 450 && choice > 100){
+				//Trains an Archer 35% of the time
+				TrainUnit(Rax, "Train Archer");
+			}
+			if(choice < 100){
+				//Trains an Mage 10% of the time
+				TrainUnit(Rax, "Train Mage");
+			}
+			if(choice > 450){
+				//Trains an Soldier 55% of the time
+				TrainUnit(Rax, "Train Soldier");
+			}
+		}
+		else{
+			if (choice < 400){
+				//Trains an Archer 35% of the time
+				TrainUnit(Rax, "Train Archer");
+			}
+			else{
+				//Trains an Soldier 65% of the time
+				TrainUnit(Rax, "Train Soldier");
+			}
+		}
 	}
-	else{
-		//Trains an Soldier 65% of the time
-		TrainUnit(Rax, "Train Soldier");
+	if(scope.strategy == "Skirmishers"){
+		if(churches.length > 0){
+			if (choice < 500 && choice > 200){
+				//Trains an Archer 30% of the time
+				TrainUnit(Rax, "Train Archer");
+			}
+			if(choice > 500){
+				//Trains an Soldier 50% of the time
+				TrainUnit(Rax, "Train Soldier");
+			}
+			if(choice < 100){
+				//Trains an Priest 10% of the time
+				TrainUnit(churches, "Train Priest");
+			}
+			if(choice > 100 && choice < 200){
+				//Trains a Raider 10% of the time
+				TrainUnit(Rax, "Train Raider");
+			}
+			
+		}
+		else{
+			if (choice < 400 && choice > 100){
+				//Trains an Archer 30% of the time
+				TrainUnit(Rax, "Train Archer");
+			}
+			if(choice > 400){
+				//Trains an Soldier 60% of the time
+				TrainUnit(Rax, "Train Soldier");
+			}
+			if(choice < 100){
+				TrainUnit(Rax, "Train Raider");
+			}
+		}
 	}
-	
-	
 }
 
 if(upgCheck == true && forges.length > 0){
@@ -1011,6 +1084,104 @@ function ballBuster(){
 			var eSel = nearEnemies[Random(nearEnemies.length)];
 			mageSel[0] = Mage[m];
 			scope.order("Fireball", mageSel,{x: eSel.getX(), y: eSel.getY()})
+			idlegoFollow(mageSel);
 		}
 	}
 }
+
+//controls how the raiders will use their flash attack if it exists
+function Flash(){
+	var nearEnemies = [];
+	//Scans through each Raider
+	for(var r = 0; r < Raider.length; r++){
+		//Collects an array of nearby enemies
+		for(var e = 0; e < enemyUnits.length; e++){
+			if(GetDist(Raider[r], enemyUnits[e]) < 8) {
+				nearEnemies.push(enemyUnits[e]);
+			}
+		}
+		if(nearEnemies.length > 0 && Raider.length> 0){
+			var raidSel = [];
+			var eSel = nearEnemies[Random(nearEnemies.length)]
+			raidSel[0] = Raider[r];
+			var modX = PosNeg(5);
+			var modY = PosNeg(5);
+			//Issues the command to use the flash ability
+			scope.order("Flash", raidSel,{x: eSel.getX() + modX, y: eSel.getY() + modY})
+			idlegoFollow(raidSel);
+		}
+	}
+}
+
+//controls how the Priest will use their invisibilty spell if it exists
+function Invisibility(){
+	var nearEnemies = [];
+	var nearAllies = []
+	for(var p = 0; p < Priest.length; p++){
+		//Scans to detect nearby enemies
+		for(var e = 0; e < enemyUnits.length; e++){
+			if(GetDist(Priest[p], enemyUnits[e]) < 15) {
+				nearEnemies.push(enemyUnits[e]);
+			}
+		}
+		//Scans to detect nearby Allies
+		for(var a = 0; a < Army.length; a++){
+			if(GetDist(Priest[p], Army[a]) < 15) {
+				nearAllies.push(Army[a]);
+			}
+		}
+		if(nearEnemies.length > 0 && Priest.length> 0 && nearAllies.length > 0){
+			var mageSel = []
+			var targ = [];
+			mageSel[0] = Priest[p];
+			targ = nearAllies[Random(nearAllies.length)]
+			scope.order("Invisibility", mageSel,{unit: targ})
+			idlegoFollow(mageSel);
+		}
+	}
+}
+
+//Makes any idled units go follow a basic Rax unit.
+//Useful if a unit used an ability on the way on an attack
+function idlegoFollow(unit){
+	var uSel = [];
+	uSel[0] = unit[0];
+	if(uSel[0].getCurrentOrderName() == "Stop" && Army.length > 0){
+		for(var c = 0; c < 5; c++){
+			scope.order("Amove", uSel, {unit: Army[Random(Army.length)]}, {shift: true})
+		}
+		
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
