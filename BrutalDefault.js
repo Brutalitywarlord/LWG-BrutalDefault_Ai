@@ -7,11 +7,12 @@
 //Initialization scope - sets variables for use in behavioural augmentations
 if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
-	scope.behavior = ["Rax", "Skirmishers","Beast"];
-	scope.strategy = scope.behavior[Random(scope.behavior.length)];
+	scope.meta = ["Rax","Skirmishers","Beast","RaxMech", "BeastMech"];
+	scope.castPrio = false; //Determines if the bot avoids building anything before 2nd castle is built
+	scope.strategy = scope.meta[Random(scope.meta.length)]; //"Beast"; //Determines the variant of the meta the bot will use. 
 	scope.aggression = randBehavior(50, 101);//Controls the interval for aggresive actions
 	scope.frugal = randBehavior(100, 26);//Controls how much money the Computer wants to save
-	scope.expansion = randBehavior(50, 121);//Controls the interval for most building construction
+	scope.expansion = randBehavior(50, 101);//Controls the interval for most building construction
 	scope.defensive = randBehavior(30, 121);//Controls interval for defensive actions
 	scope.rshPrio = randBehavior(10, 141);//Controls how often the computer will research new technology
 	scope.playNum = scope.getArrayOfPlayerNumbers();
@@ -21,22 +22,38 @@ if(!scope.initialized){
 		scope.playStarts[yee] = scope.getStartLocationForPlayerNumber(scope.playNum[yee]);
 	}
 	scope.plentyGold = false;
+	//Variable controls delays seen in a few build orders
+	//Array Order: Houses, Forge
+	scope.delay = [10,10];
 	
+	//Determines how the Ai prioritizes a second castle
+	var prioChoice = Random(100);
+	if(prioChoice >= 70){
+		scope.castPrio = true;
+	}
+
 	//Logs all the behavioral variables in the console.
 	console.log("Player: ", scope.getMyPlayerNumber());
-	console.log("Strategy: ", scope.strategy);
-	console.log("Aggression: ", scope.aggression);
-	console.log("Greed: ", scope.frugal);
-	console.log("Expansion: ", scope.expansion);
-	console.log("Defensive: ", scope.defensive);
-	console.log("Research Priority: ", scope.rshPrio);
+	console.log("Meta: ", scope.strategy);
 	console.log("------------------");
-	
+
+	scope.attacker = null;
+
+	scope.limit = false;
 	scope.initialized = true;
+	
 }
 
 
 
+
+if(scope.castPrio == true){
+	scope.delay[0] = 150;
+	scope.delay[1] = 180;
+}
+else{
+	scope.delay = [2,240];
+}	
 // General variables
 var time = Math.round(scope.getCurrentGameTimeInSec());
 var me = scope.getMyPlayerNumber();
@@ -47,7 +64,7 @@ var mines = EmptyFilter();
 var Width = scope.getMapWidth();
 var Height = scope.getMapHeight();
 var supply = scope.getCurrentSupply();
-var maxSup = scope.getMaxSupply;
+var maxSup = scope.getMaxSupply();
 var supDiff = maxSup - supply;
 
 
@@ -63,8 +80,13 @@ var forges = scope.getBuildings({type: "Forge", player: me});
 var guilds = scope.getBuildings({type: "Mages Guild", player: me});
 var churches = scope.getBuildings({type: "Church", player: me});
 var Dens = scope.getBuildings({type: "Wolves Den", player: me});
+var wereDens = scope.getBuildings({type: "Werewolves Den", player: me});
+var Lairs = scope.getBuildings({type: "Dragons Lair", player: me});
 var Charmer = scope.getBuildings({type: "Snake Charmer", player: me});
-var impStruct = castles.concat(houses.concat(towers.concat(Rax.concat(Dens))));
+var workshops = scope.getBuildings({type: "Workshop", player: me});
+var mills = scope.getBuildings({type: "Mill", player: me});
+var advWkShops = scope.getBuildings({type: "Advanced Workshop", player: me});
+var impStruct = castles.concat(houses.concat(towers.concat(Rax.concat(Dens.concat(workshops.concat(mills))))));
 var allAllied = scope.getBuildings({team: myTeam, onlyFinshed: true});
 
 //Variables to locate Computer owned units
@@ -77,11 +99,22 @@ var Priest = scope.getUnits({type: "Priest", player: me});
 var Raider = scope.getUnits({type: "Raider", player: me});
 var Wolves = scope.getUnits({type: "Wolf", player: me});
 var Snakes = scope.getUnits({type: "Snake", player: me});
+var wereWolves = scope.getUnits({type: "Werewolf", player: me});
+var Dragons = scope.getUnits({type: "Dragon", player: me});
+var Gats = scope.getUnits({type: "Gatling Gun", player: me});
+var Gyros = scope.getUnits({type: "Gyrocraft", player: me});
+var Cats = scope.getUnits({type: "Catapult", player: me});
 var Army = [];
 if(scope.strategy == "Beast"){
 	Army = Wolves.concat(Snakes);
 }
-else{
+if(scope.strategy == "RaxMech"){
+	Army = Soldier.concat(Archer.concat(Raider.concat(Gats.concat(Gyros.concat(Cats)))));
+}
+if(scope.strategy == "BeastMech"){
+	Army = Wolves.concat(Snakes.concat(Raider.concat(Gats.concat(Gyros.concat(Cats)))));
+}
+if(scope.strategy == "Rax" || scope.strategy == "Skirmishers"){
 	Army = Soldier.concat(Archer.concat(Mage.concat(Raider.concat(Priest))));
 }
 
@@ -116,13 +149,13 @@ var forgeCheck = false;
 mineDelay = DecisionTick(2);
 scout = DecisionTick(Math.floor(60*scope.aggression));
 isBattle = DecisionTick(Math.floor(10*scope.defensive));
-isSiege = DecisionTick(Math.floor(180*scope.aggression));
+isSiege = DecisionTick(Math.floor(120*scope.aggression));
 towerBuild = DecisionTick(Math.floor(50*scope.expansion));
 workerCheck = DecisionTick(25/scope.expansion);
 repCheck = DecisionTick(Math.floor(15*scope.defensive));
 houseCheck = DecisionTick(Math.floor(20*scope.expansion));
 raxCheck = DecisionTick(Math.floor(25*scope.expansion));
-armyCheck = DecisionTick(15/(scope.expansion));
+armyCheck = DecisionTick(10);
 upgCheck = DecisionTick(Math.floor((45*scope.frugal)*scope.rshPrio));
 birbCheck = DecisionTick(60);
 forgeCheck = DecisionTick(Math.floor(60*scope.expansion));
@@ -138,6 +171,8 @@ var flashCheck = DecisionTick(7);
 var invisCheck = DecisionTick(5);
 var churchCheck = DecisionTick(40*scope.expansion);
 var charmCheck = DecisionTick(20*scope.expansion);
+var lairCheck = DecisionTick(45*scope.expansion);
+
 
 if(castles.length < 2 && time > 60){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
@@ -164,14 +199,14 @@ if(birbCheck == true && birbs.length < 1 && time > 300 && scope.plentyGold == tr
 }
 
 //Commands small army to move to random location
-if (scout == true){
-	if(birbs.length > 0 && time > 180*scope.aggression){
+if (scout == true && time > 60*scope.aggression){
+	if(birbs.length > 0){
 		//If a bird exists, use it for scouting
 		Scout(Width,Height,birbs, false);
 	}
 	else{
 		//If a bird doesn't exist, use a basic soldier instead - if one exists
-		if(time > 180*scope.aggression && Army.length > 0){
+		if(Army.length > 0){
 			var scouter = [];//Empty array to store the first unit in the array of units
 			scouter.push(Army[0]);
 			Scout(Width,Height, scouter, false);
@@ -182,25 +217,24 @@ if (scout == true){
 
 //If the enemy is close to one of the computers buildings, send units to intercept.
 if(isBattle == true){
-	if(enemyUnits.length > 0 && allAllied.length > 0 && Army.length >= enemyUnits.length) {
-		var e = enemyUnits[Random(enemyUnits.length)]; //Only checks one enemy to prevent lag
+	if(enemyUnits.length > 0 && allAllied.length > 0 && Army.length > 0) {
+		e = Random(enemyUnits.length);
 		for(var i = 0; i < allAllied.length; i++){
 			//For loop cycles through an array of all specified buildings
 			var b = allAllied[i];
-			var dist = GetDist(b, e);//Gets the hypotenouse between allied structure, and enemy
+			var dist = GetDist(b, enemyUnits[e]);//Gets the hypotenouse between allied structure, and enemy
 			if(dist < 15){
 				//If an enemy unit is within the defensive threshold - deploy army to intercept
-				scope.order("AMove", Army, {x: e.getX(),y: e.getY()});
-				defenseQuips();
+				scope.order("AMove", Army, {x: enemyUnits[e].getX(),y: enemyUnits[e].getY()});
+				//defenseQuips();
+				scope.attacker = enemyUnits[e].getOwnerNumber();
 				i = allAllied.length;
 			}
 		}
-		
-		
 	}
 }
 //Declares an attack against a random enemy building 
-if(isSiege == true && (castles.length > 1 || scope.plentyGold == true || time > (60*scope.aggression)*scope.playNum.length)){
+if(isSiege == true && (scope.plentyGold == true || time > (30*scope.aggression)*scope.playNum.length)){
 	if(Army.length > 10){
 		//If the computer has at least 10 soldiers, and knows the enemies location...
 		//Attack the enemy
@@ -223,7 +257,7 @@ if(invisCheck == true && Priest.length > 0){
 }
 
 //If Comptuers worker count is too small - make more workers
-if (workerCheck == true && time > 40){
+if (workerCheck == true && time > 70){
 	if(scope.plentyGold == true && workers.length < 13){
 		TrainUnit(castles,"Train Worker");
 	}
@@ -239,40 +273,75 @@ if (workerCheck == true && time > 40){
 	}
 }
 
+
 //Worker Commands
 if (workers.length > 0 && time > 5){
 	//Locates a nearby goldmine, then orders the construction of a new castle near it
 	if (castleCheck == true && scope.plentyGold == false){
 		newCastle();
 	}
-	
 	//Deploys a worker to produce a House
-	if(houseCheck == true && time > 10 ){
-		//Will initially construct 1 house, then will proceed to build 2 houses for each barracks built
-		if (houses.length < 1 || ((houses.length < Rax.length*2 && scope.plentyGold == false) ||
-		(houses.length < Rax.length*3 && scope.plentyGold == true))
-		&& (scope.strategy == "Rax" || scope.strategy == "Skirmishers")){
-			RandBuild("House","Build House", workers, 3, castles, 13, 6);
+	if(houseCheck == true && (scope.castPrio == false || castles.length > 1)){
+		//If there is no house, construct one.
+		
+		if(houses.length < 1){
+			RandBuild("House","Build House", workers, 3, castles, 14, 5);
 		}
-		if(houses.length < 1 || scope.strategy == "Beast" && houses.length < Dens.length*3){
-			RandBuild("House","Build House", workers, 3, castles, 13, 6);
+		//If there's a Barracks, Den or Workshop, start building more houses
+		if(Rax.length > 0 || Dens.length > 0 || workshops.length > 0){
+			if((scope.strategy == "Rax" || scope.strategy == "Skirmishers" ) 
+				&& houses.length < Rax.length*2){
+				RandBuild("House","Build House", workers, 3, castles, 14, 5);
+			}
+			if(scope.strategy == "Beast" && houses.length < Dens.length*2){
+				RandBuild("House","Build House", workers, 3, castles, 14, 5);
+			}
+			if((scope.strategy == "BeastMech" || scope.strategy == "RaxMech")
+			&& houses.length < (Dens.length + Rax.length + workshops.length + mills.length)){
+				RandBuild("House","Build House", workers, 3, castles, 14, 5);
+			}
+			//If the computer has a second castle - begin approaching maximum supply possible
+			if(((castles.length > 1 || scope.plentyGold == true) && time > 600)
+				&& maxSup < 150 ){
+				RandBuild("House","Build House", workers, 3, castles, 14, 5);
+			}
+		}
+		
+		
+	}
+	//Deploys Workers to build either a Den or a Barracks
+	if(raxCheck == true){
+		//Barracks
+		if((scope.strategy == "Rax" || scope.strategy == "Skirmishers") && Rax.length < castles.length*2){
+			RandBuild("Barracks","Build Barracks", workers, 3, castles, 12, 4);
+		}
+		if(scope.strategy == "RaxMech" && Rax.length < (castles.length + workshops.length)){
+			RandBuild("Barracks","Build Barracks", workers, 3, castles, 12, 4);
+		}
+		//Dens
+		if((scope.strategy == "Beast") && Dens.length < castles.length*2){
+			RandBuild("Wolves Den","Build Wolves Den", workers, 3, castles, 12, 4);
+		}
+		if(scope.strategy == "BeastMech" && Dens.length < (castles.length + workshops.length)){
+			RandBuild("Wolves Den","Build Wolves Den", workers, 3, castles, 12, 4);
 		}
 	}
-	//Deploys a worker to produce a Barracks - Formula: 2 barracks per castle built.
-	if (raxCheck == true && (scope.strategy == "Rax" || scope.strategy == "Skirmishers") && 
-	((Rax.length < castles.length*2 && scope.plentyGold == false) || 
-	(Rax.length < castles.length*3 && scope.plentyGold == true))){
-		RandBuild("Barracks","Build Barracks", workers, 3, castles, 10);
+	//Deploys a worker to construct a Workshop
+	if(raxCheck == true && (scope.strategy == "RaxMech" || scope.strategy == "BeastMech")
+	&& (workshops.length < castles.length || workshops.length < 1)){
+		RandBuild("Workshop","Build Workshop", workers, 4, castles, 12, 6);
 	}
-	//Deploys a worker to build a Wolves Den
-	if(raxCheck == true && scope.strategy == "Beast" && 
-	((Dens.length < castles.length*2 && scope.plentyGold == false) || 
-	(Dens.length < castles.length*3 && scope.plentyGold == true))){
-		RandBuild("Wolves Den","Build Wolves Den", workers, 3, castles, 10);
+	//Deploys a worker to construct a Mill
+	if(raxCheck == true && (scope.strategy == "RaxMech" || scope.strategy == "BeastMech")
+	&& (mills.length < castles.length || mills.length < 1)){
+		RandBuild("Mill","Build Mill", workers, 3, castles, 12, 5);
 	}
 	//Deploys a worker to build a snake charmer
 	if(charmCheck == true && scope.strategy == "Beast" && Charmer.length < 1){
 		RandBuild("Snake Charmer","Build Snake Charmer", workers, 3, castles, 10);
+	}
+	if(lairCheck == true && scope.strategy == "Beast" && Lairs.length < 1 && wereDens.length > 0){
+		RandBuild("Dragons lair","Build Dragons Lair", workers, 3, castles, 14);
 	}
 	//Deploys a worker to construct a Mages Guild
 	if(guildCheck == true && scope.strategy == "Rax" && guilds.length < 1 && Rax.length > 0){
@@ -284,8 +353,13 @@ if (workers.length > 0 && time > 5){
 	}
 	//Deploys a worker to construct a Forge
 	if(forgeCheck == true && scope.strategy == "Rax" && forges.length < 1 
-	&& (time > 240 || scope.plentyGold == true)){
+	&& (time > scope.delay[1] || scope.plentyGold == true)){
 		RandBuild("Forge","Build Forge", workers, 3, castles, 10);
+	}
+	//Deploys a worker to construct a Advanced Workshop
+	if(forgeCheck == true && scope.strategy == "RaxMech" && advWkShops.length < 1 
+	&& (time > scope.delay[1] || scope.plentyGold == true) && workshops.length > 1){
+		//RandBuild("Advanced Workshop","Build Advanced Workshop", workers, 3, castles, 10);
 	}
 	//Deploys a worker to construct a watchtower
 	if (towerBuild == true && Rax.length > 1 && castles.length < 2 && towers.length < 1 && scope.plentyGold == false){
@@ -316,18 +390,8 @@ else {
 	TrainUnit(castles,"Worker")
 }
 
-//Researches spells required to for certain strategies to function
-if(rshCheck == true){
-	if(guilds.length > 0 && scope.strategy == "Rax"){
-		scope.order("Research Fireball", guilds);
-	}
-	if(churches.length > 0 && scope.strategy == "Skirmishers"){
-		scope.order("Research Invisibility", churches);
-	}
-}
-
 //Trains the basic Rax Units
-if (armyCheck == true){
+if (armyCheck == true && scope.plentyGold == false && scope.limit == false){
 	var choice = Random(1000);//Generates a random number to act as a method of choosing a unit to build
 	if(scope.strategy == "Rax"){
 		if(guilds.length > 0){
@@ -401,20 +465,90 @@ if (armyCheck == true){
 		else{
 			TrainUnit(Dens, "Train Wolf");
 		}
+		if(wereDens.length > 0 && choice > 800){
+			TrainUnit(wereDens, "Train Werewolf");
+		}
+		if(Lairs.length > 0 && choice > 900){
+			TrainUnit(Lairs, "Train Dragon");
+		}
+	}
+	if(scope.strategy == "RaxMech"){
+		if(mills.length > 0){
+			TrainUnit(mills, "Construct Gyrocraft");
+		}
+		if(choice < 250){
+			TrainUnit(Rax, "Train Raider");
+		}
+		if(choice > 250 && choice < 350){
+			TrainUnit(Rax, "Train Archer");
+		}
+		if(choice > 350){
+			TrainUnit(Rax, "Train Soldier");
+		}
+				if(workshops.length > 0){
+			if(choice < 600){
+				TrainUnit(workshops, "Construct Gatling Gun");
+			}
+			else{
+				TrainUnit(workshops, "Construct Catapult");
+			}
+			
+		}
+	}
+	if(scope.strategy == "BeastMech"){
+		if(choice < 300){
+			TrainUnit(Dens, "Train Snake");
+		}
+		if(choice > 300){
+			TrainUnit(Dens, "Train Wolf");
+		}
+		if(workshops.length > 0){
+			if(choice < 600){
+				TrainUnit(workshops, "Construct Gatling Gun");
+			}
+			else{
+				TrainUnit(workshops, "Construct Catapult");
+			}
+			
+		}
+		if(mills.length > 0 && choice > 600){
+			TrainUnit(mills, "Construct Gyrocraft");
+		}
+
+	}
+
+}
+
+//Researches spells required to for certain strategies to function
+if(rshCheck == true){
+	if(guilds.length > 0 && scope.strategy == "Rax"){
+		scope.order("Research Fireball", guilds);
+	}
+	if(churches.length > 0 && scope.strategy == "Skirmishers"){
+		scope.order("Research Invisibility", churches);
 	}
 }
 
-if(upgCheck == true && forges.length > 0){
-	if (scope.plentyGold == true){
-		//If there is an excess of gold nearby the start location, freely research upgrades
-		unitUpg();
-	}
-	else{
+if(upgCheck == true){
+	if(forges.length > 0){
+		if (scope.plentyGold == true){
+			//If there is an excess of gold nearby the start location, freely research upgrades
+			unitUpg();
+		
+		}
+		else{
 		//If there is not an excess of gold nearby the start location, wait until a second castle exists
 		if (castles.length > 1){
-			unitUpg();
+				unitUpg();
+			}
 		}
 	}
+	if(castles.length > 1 && scope.strategy == "Beast" && wereDens.length < castles.length
+	&& Dens.length > 0){
+		var selected = Dens[Random(Dens.length)];
+		scope.order("Upgrade to Werewolves Den", selected);
+	}
+	
 	
 }
 
@@ -460,13 +594,13 @@ function startMine(){
 			{
 				nearestDist = dist;
 			}
+			
 		}
 		for(var i = 0; i < mines.length; i++){
 			//If the mine is within a certain distance add it to the possible selection of mines
 			var mine = mines[i];
 			var distance = GetDist(d, mine);
-			if(distance < (nearestDist + ((4*scope.frugal))) 
-			&& distance > (nearestDist - ((4*scope.frugal)))){
+			if(distance <= nearestDist + 1){
 				closeMines.push(mine);
 			}
 		}
@@ -570,14 +704,14 @@ function Scout(width,height, unit,squad){
 
 //Random Number Function - Note: Selection range begins at 0, and ends at max - 1
 function Random(max){
-    return Math.floor(scope.getRandomNumber(0,max));
+    return Math.floor(Math.random()*max);
 }
 
 //same as Random, but also decides if number is positive or negative
 function PosNeg(max){
 	var n = Random(max);
-	var Decision = Random(100);
-	if (Decision < 51){
+	var Decision = Random(1000);
+	if (Decision < 500){
 		n = n*1;
 	}
 	else{
@@ -593,7 +727,8 @@ function TrainUnit(building,unitTag){
 	var unit = unitTag; //String Value for command to build desired unit
 	for (i = 0; i < b.length; i++){
 		//for every building - train unit of type unitTag
-		if(b.length >= 1 && !b[i].getUnitTypeNameInProductionQueAt(1)){
+		if(b.length >= 1 && !b[i].getUnitTypeNameInProductionQueAt(1) 
+			&& supDiff > 1){
 			scope.order(unit, [b[i]]);
 		}
 	}
@@ -665,7 +800,6 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		var Y = 0;
 		var thisCoord = [];
 		var pastCoord = [];
-
 		var p = null;//Stores the array of parent objects
 		
 		if (!Parent || Parent.length == 0){
@@ -700,7 +834,7 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		}
 		var order = s[0].getCurrentOrderName();//Gets current order for selected unit
 		var k = 0
-		while(k < 10){
+		while(k < 50){
 			
 			//Filters out builders who are building other structures
 			if(order == "Stop" || order == "Mine" && s.length > 0 && u.length > 0){
@@ -725,30 +859,37 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 					//If user intends no inner radius, you can leave Mod parameter blank when calling function
 					X = p.getX() + PosNeg(r);
 					Y = p.getY() + PosNeg(r);
+					parX = p.getX();
+					parY = p.getY();
 					thisCoord[0] = X;
 					thisCoord[1] = Y;
 					
 					for(var l = 0; l < pastCoord.length; l++){
 						if(X == pastCoord[l][0] && Y == pastCoord[l][1]){
-							k = k+1;
+							l = l+1;
 						}
 						else{
 							pastCoord.push(thisCoord);
-							k = pastCoord.length
+							l = pastCoord.length;
 						}
 					}
 					var closeCheck = 0;
-					while(closeCheck < 10){
+					while(closeCheck < 50){
 						//Following code checks if the new coordinate is too close to the structure
+						//Also checks if the coordinate happens to be out of bounds
 						if (r > 0){
-							if ( (X <= si + m || X > Width) || (Y <= si + m || Y > Height) ||
-							(X <= si - m || X > Width) || (Y <= si - m || Y > Height)){
+							if ( (((X >= parX + (si + m)) || (X <= parX - m))
+								&& ((Y >= parY + (si + m))  || (Y <= parY - m)))
+							&& ( X < Width && Y < Height)
+							&& ( X > 0 && Y > 0)){
+								//If invalid, cycle the loop
 								X = p.getX() + PosNeg(r);
 								Y = p.getY() + PosNeg(r);
 								closeCheck = closeCheck + 1;
 							}
 							else{
-								closeCheck = 20;
+								//If position is valid - exit loop
+								closeCheck = 60;
 							}
 						}
 					}
@@ -763,7 +904,6 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 									check = false;
 										z = si;
 										i = si;
-										
 								}
 								else{
 									check = true;
@@ -774,10 +914,10 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						if (check == true){
 							//if position is valid, check is true, and an order is issued to build at location
 								//Code then breaks the overarching while loop to prevent infinite run time
+								
 								scope.order("Stop", s);//Stops current Order
 								scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-								b = 50;//Exits Loop
-										k = 10;
+								k = 60;
 						}
 					}
 				}
@@ -860,7 +1000,7 @@ function newCastle(){
 		// get nearest goldmine that is not right next to the castle
 		var mine = mines[i];
 		var dist = GetDist(d, mine);
-		if(dist < nearestDist && dist > 17)
+		if(dist < nearestDist && dist > 12)
 		{
 			nearestDist = dist;
 		}
@@ -869,7 +1009,7 @@ function newCastle(){
 		//add the next closest goldmine to the array
 		var mine = mines[i];
 		var distance = GetDist(d, mine);
-		if(distance <= nearestDist){
+		if(distance >= nearestDist -1 && distance <= nearestDist + 3){
 			closeMines.push(mine);
 		}
 	}
@@ -878,11 +1018,11 @@ function newCastle(){
 		if(closeMines.length > 0){
 			//If the computer found the next closest gold mine - build next to it
 			sel[0] = closeMines[Random(closeMines.length)];
-			RandBuild("Castle","Build Castle", workers, 4, sel, 11, 7);
+			RandBuild("Castle","Build Castle", workers, 4, sel, 12, 9);
 		}
 		else{
 			//if there was no valid parent found, just build at a random goldmine
-			RandBuild("Castle","Build Castle", workers, 4, mines, 11, 7);
+			RandBuild("Castle","Build Castle", workers, 4, mines, 12, 9);
 		}
 	}
 }
@@ -1142,28 +1282,6 @@ function idlegoFollow(unit){
 		scope.order("Moveto", uSel, {unit: Army[Random(Army.length)]})
 	}
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
