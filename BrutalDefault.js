@@ -79,11 +79,6 @@ var Height = scope.getMapHeight();
 var supply = scope.getCurrentSupply();
 var maxSup = scope.getMaxSupply();
 
-
-
-
-
-
 //variables to store allied Buildings
 var allBuild = scope.getBuildings({player: me})
 var castles = scope.getBuildings({type: "Castle", player: me});
@@ -1107,24 +1102,26 @@ function newCastle(){
 	var d = deliverSites[Random(deliverSites.length)];
 	var sel = [];
 	var selWorker = [];
-
-	for(var i = 0; i < mines.length; i++){
-		// get nearest goldmine that is not right next to the castle
-		var mine = mines[i];
-		var dist = GetDist(d, mine);
-		if(dist < nearestDist && dist > 13)
-		{
-			nearestDist = dist;
+	if(deliverSites.length > 0){
+		for(var i = 0; i < mines.length; i++){
+			// get nearest goldmine that is not right next to the castle
+			var mine = mines[i];
+			var dist = GetDist(d, mine);
+			if(dist < nearestDist && dist > 13)
+			{
+				nearestDist = dist;
+			}
+		}
+		for(var i = 0; i < mines.length; i++){
+			//add the next closest goldmine to the array
+			var mine = mines[i];
+			var distance = GetDist(d, mine);
+			if(distance >= nearestDist -1 && distance <= nearestDist + 3){
+				closeMines.push(mine);
+			}
 		}
 	}
-	for(var i = 0; i < mines.length; i++){
-		//add the next closest goldmine to the array
-		var mine = mines[i];
-		var distance = GetDist(d, mine);
-		if(distance >= nearestDist -1 && distance <= nearestDist + 3){
-			closeMines.push(mine);
-		}
-	}
+	
 	if(workers.length > 0){
 		selWorker[0] = workers[0];
 		if(deliverSites.length > 0 && gold > 350)
