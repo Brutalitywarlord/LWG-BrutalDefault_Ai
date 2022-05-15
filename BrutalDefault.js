@@ -1345,10 +1345,6 @@ function ChooseUnit(){
 	var probSwitch = false; //Keeps a while loop going until a training order gets selected
 	var deathSwitch = 0;
 	while (probSwitch == false){
-		deathSwitch = deathSwitch + 1;
-		if(deathSwitch > 100){
-			probSwitch = true;
-		}
 		var c = keys[Random(keys.length)];
 		var d = scope.unitChance[c]; // Stores the probability of a unit to be trained
 		var n = Random(10000)/10000;//Selects a random number to be compared to 'd'
@@ -1520,7 +1516,7 @@ function Brain(){
 	if(scope.strategy == "Rax"){
 		if(houses.length > 0){
 			//If there's a house, adjust probability of Barracks
-			if(Rax.length < deliverSites.length*2){
+			if(Rax.length < (deliverSites.length*2)){
 				//If there's less than two barracks per castle - set probability high
 				scope.buildChance["Build Barracks"]["Prob"] = 0.70
 			}
@@ -1571,7 +1567,7 @@ function Brain(){
 			scope.buildChance["Build  Snake Charmer"]["Prob"] = 0.70
 		}
 		else{
-			scope.buildChance["Build  Snake Charmer"]["Prob"] = -1
+			scope.buildChance["Build Snake Charmer"]["Prob"] = -1
 		}
 		if(houses.length > 0 && allDens.length < (deliverSites.length*2)){
 			//if there is a house, and less than two dens per castle - make some more
@@ -1600,7 +1596,7 @@ function Brain(){
 				scope.buildChance["Build Snake Charmer"]["Prob"] = 0.70
 			}
 			else{
-				scope.buildChance["Build  Snake Charmer"]["Prob"] = -1
+				scope.buildChance["Build Snake Charmer"]["Prob"] = -1
 			}
 			if(allDens.length < (deliverSites.length*2)){
 				//if there is less than two dens per castle - make some more		
@@ -1639,7 +1635,7 @@ function Brain(){
 	if(scope.strategy == "RaxMech"){
 		if(houses.length > 0){
 			//If there's a house, adjust probability of Barracks
-			if(Rax.length < deliverSites.length*2){
+			if(Rax.length < (deliverSites.length*2)){
 				//If there's less than two barracks per castle - set probability high
 				scope.buildChance["Build Barracks"]["Prob"] = 0.70
 			}
