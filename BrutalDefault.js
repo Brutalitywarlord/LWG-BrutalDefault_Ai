@@ -1564,7 +1564,7 @@ function Brain(){
 	}
 	if(scope.strategy == "Beast"){
 		if(houses.length > 0 && Charmer.length < 1){
-			scope.buildChance["Build  Snake Charmer"]["Prob"] = 0.70
+			scope.buildChance["Build Snake Charmer"]["Prob"] = 0.70
 		}
 		else{
 			scope.buildChance["Build Snake Charmer"]["Prob"] = -1
