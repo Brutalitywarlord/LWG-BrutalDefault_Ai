@@ -9,7 +9,8 @@ if(!scope.initialized){
 	//generates a randomized multiplier to determine variable behavior in the computer
 	//"OopsOnlyTowers" - Disabled Meta due to issues 
 	//Pending ideas - "WulkSmash", "HowToTrainYourDragon", "RaiderBoss"
-	scope.meta = ["Rax", "BeastMech", "Beast","RaxMech", "Skirmishers"];
+	scope.meta = ["BeastMech" , "Rax" , "Beast", "RaxMech", "Skirmishers"];
+	scope.forceBuild = false;
 	scope.goldAlert = false; //Will stop building structures if goldmine running empty - prioritizes a new castle. 
 	scope.castPrio = false; //Determines if the bot avoids building anything before 2nd castle is built
 	scope.strategy = scope.meta[Random(scope.meta.length)]; //Determines the variant of the meta the bot will use. 
@@ -20,12 +21,11 @@ if(!scope.initialized){
 	scope.eMod = 0; 
 	scope.dMod = 0; 
 	scope.rMod = 0;
-	scope.priorityMine = null; //Stores the goldmine the bot wants to prioritize for building a castle next too
+	scope.priorityMine = []; //Stores the goldmine the bot wants to prioritize for building a castle next too
 	
 	
 	//Behavioral Modifiers which adjust certain behaviors in the bot
 	scope.aggression = randBehavior(50, 101) + scope.aMod;//Controls the interval for aggresive actions
-	scope.frugal = randBehavior(100, 26);//Controls how much money the Computer wants to save
 	scope.expansion = randBehavior(50, 101) + scope.eMod;//Controls the interval for most building construction
 	scope.defensive = randBehavior(30, 121) + scope.dMod;//Controls interval for defensive actions
 	scope.rshPrio = randBehavior(10, 141) + scope.rMod;//Controls how often the computer will research new technology
@@ -49,10 +49,15 @@ if(!scope.initialized){
 	
 	scope.alertDelay = 10;
 	scope.towerControl = 40;
-	scope.scoutControl = 60;
-	scope.castleRush = 3;
+	scope.scoutControl = 30;
+	scope.castleRush = 3
+	scope.rushControl = 5;
 	scope.castleSwitch = false;
 	scope.cLimit = 2;
+	scope.dBuffer = 2;
+	if(scope.strategy == "BeastMech" || scope.strategy == "RaxMech"){
+		scope.dBuffer = 2;
+	}
 
 	//Logs all the behavioral variables in the console.
 	console.log("Player: ", scope.getMyPlayerNumber());
@@ -83,70 +88,79 @@ if(!scope.initialized){
 	scope.buildChance = {} //Stores a list of construction probabilities for buildings associated to its meta
 	//Initial probabilities for unit training and building construction
 	if(scope.strategy == "Rax"){
-        scope.unitChance["Train Archer"] = 0.35;
-        scope.unitChance["Train Soldier"] = 0.50;
-        scope.unitChance["Train Mage"] = 0;
+		scope.unitChance = {
+			"Train Archer":{"Prob": 0.35, "ID": "archer"},
+			"Train Soldier":{"Prob": 0.35, "ID": "soldier"},
+			"Train Mage":{"Prob": 0, "ID": "mage"},
+		}
 		scope.buildChance = {
-			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7},
-			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  12, "MinRad" : 1},
-			"Build Mages Guild" : {"Prob": 0, "Type": "Mages Guild", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1},
-			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 3, "Parent": [], "Radius":  7, "MinRad" : 4},
+			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7, "ID": "house"},
+			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "barracks"},
+			"Build Mages Guild" : {"Prob": 0, "Type": "Mages Guild", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "magesguild"},
+			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  7, "MinRad" : 3, "ID": "watchtower"},
 		}
 	}
 	if(scope.strategy == "Skirmishers"){
-        scope.unitChance["Train Archer"] = 0.35;
-        scope.unitChance["Train Soldier"] = 0.50;
-		scope.unitChance["Train Raider"] = 0.15;
-        scope.unitChance["Train Preist"] = 0;
+		scope.unitChance = {
+			"Train Archer":{"Prob": 0.35, "ID": "archer"},
+			"Train Soldier":{"Prob": 0.50, "ID": "soldier"},
+			"Train Raider":{"Prob": 0.15, "ID": "raider"},
+			"Train Priest":{"Prob": 0, "ID": "priest"},
+		}
 		scope.buildChance = {
-			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7},
-			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  12, "MinRad" : 1},
-			"Build Church" : {"Prob": 0.1, "Type": "Church", "Size" : 4, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  12, "MinRad" : 1}
+			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7, "ID": "house"},
+			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "barracks"},
+			"Build Church" : {"Prob": 0.1, "Type": "Church", "Size" : 4, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "church"},
+			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  7, "MinRad" : 3, "ID": "watchtower"},
 		}
 	}
 	if(scope.strategy == "Beast"){
-        scope.unitChance["Train Wolf"] = 0.55;
-        scope.unitChance["Train Snake"] = 0.45;
-		scope.unitChance["Train Werewolf"] = 0;
-        scope.unitChance["Train Dragon"] = 0;
+		scope.unitChance = {
+			"Train Wolf":{"Prob": 0.55, "ID": "wolf"},
+			"Train Snake":{"Prob": 0.45, "ID": "snake"},
+			"Train Werewolf":{"Prob": 0, "ID": "werewolf"},
+			"Train Dragon":{"Prob": 0, "ID": "dragon"},
+		}
 		scope.buildChance = {
-			"Build House" : {"Prob": 0.8, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7},
-			"Build Wolves Den": {"Prob": 0, "Type": "Wolves Den", "Size" : 3, "Parent": [], "Radius":  12, "MinRad" : 1},
-			"Build Snake Charmer" : {"Prob": 0, "Type": "Snake Charmer", "Size" : 2, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Dragons Lair" : {"Prob": 0, "Type": "Dragons Lair", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  12, "MinRad" : 1}
+			"Build House" : {"Prob": 0.8, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7, "ID": "house"},
+			"Build Wolves Den": {"Prob": 0, "Type": "Wolves Den", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "wolvesden"},
+			"Build Snake Charmer" : {"Prob": 0, "Type": "Snake Charmer", "Size" : 2, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "snake_charmer"},
+			"Build Dragons Lair" : {"Prob": 0, "Type": "Dragons Lair", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "dragonslair"},
+			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  7, "MinRad" : 3, "ID": "watchtower"},
 		}
 	}
 	if(scope.strategy == "BeastMech"){
-        scope.unitChance["Train Wolf"] = 0.55;
-        scope.unitChance["Train Snake"] = 0.45;
-		scope.unitChance["Train Werewolf"] = 0;
-		scope.unitChance["Construct Gatling Gun"] = 0;
-		scope.unitChance["Construct Catapult"] = 0;
-		scope.unitChance["Construct Gyrocraft"] = 0;
-        scope.unitChance["Train Dragon"] = 0;
+		scope.unitChance = {
+			"Train Wolf":{"Prob": 0.55, "ID": "wolf"},
+			"Train Snake":{"Prob": 0.45, "ID": "snake"},
+			"Train Werewolf":{"Prob": 0, "ID": "werewolf"},
+			"Train Dragon":{"Prob": 0, "ID": "dragon"},
+			"Construct Gatling Gun":{"Prob": 0, "ID": "gatlinggun"},
+			"Construct Catapult":{"Prob": 0, "ID": "catapult"}
+		}
 		scope.buildChance = {
-			"Build House" : {"Prob": 0.8, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7},
-			"Build Wolves Den": {"Prob": 0, "Type": "Wolves Den", "Size" : 3, "Parent": [], "Radius":  12, "MinRad" : 1},
-			"Build Snake Charmer" : {"Prob": 0, "Type": "Snake Charmer", "Size" : 2, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Dragons Lair" : {"Prob": 0, "Type": "Dragons Lair", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Workshop" : {"Prob": 0, "Type": "Workshop", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1},
-			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  12, "MinRad" : 1}
+			"Build House" : {"Prob": 0.8, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7, "ID": "house"},
+			"Build Wolves Den": {"Prob": 0, "Type": "Wolves Den", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "wolvesden"},
+			"Build Snake Charmer" : {"Prob": 0, "Type": "Snake Charmer", "Size" : 2, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "snakecharmer"},
+			"Build Dragons Lair" : {"Prob": 0, "Type": "Dragons Lair", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "dragonslair"},
+			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  7, "MinRad" : 3, "ID": "watchtower"},
+			"Build Workshop" : {"Prob": 0, "Type": "Workshop", "Size" : 3, "Parent": [], "Radius":  16, "MinRad" : 1, "ID": "workshop"}
 		}
 	}
 	if(scope.strategy == "RaxMech"){
-        scope.unitChance["Train Archer"] = 0.35;
-        scope.unitChance["Train Soldier"] = 0.50;
-		scope.unitChance["Construct Gatling Gun"] = 0;
-		scope.unitChance["Construct Catapult"] = 0;
-		scope.unitChance["Construct Gyrocraft"] = 0;
+		scope.unitChance = {
+			"Train Archer":{"Prob": 0.35, "ID": "archer"},
+			"Train Soldier":{"Prob": 0.35, "ID": "soldier"},
+			"Construct Gatling Gun":{"Prob": 0, "ID": "gatlinggun"},
+			"Construct Catapult":{"Prob": 0, "ID": "catapult"},
+			"Construct Gyrocraft":{"Prob": 0, "ID": "gyrocopter"}
+		}
 		scope.buildChance = {
-			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7},
-			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  12, "MinRad" : 1},
-			"Build Workshop" : {"Prob": 0, "Type": "Mages Guild", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1},
-			"Build Mill" : {"Prob": 0, "Type": "Mages Guild", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1},
-			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 3, "Parent": [], "Radius":  7, "MinRad" : 4},
+			"Build House" : {"Prob": 0.9, "Type": "House", "Size" : 3, "Parent": [] , "Radius":  18, "MinRad" : 7, "ID": "house"},
+			"Build Barracks": {"Prob": 0, "Type": "Barracks", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "barracks"},
+			"Build Watchtower" : {"Prob": 0.1, "Type": "Watchtower", "Size" : 2, "Parent": [], "Radius":  7, "MinRad" : 3, "ID": "watchtower"},
+			"Build Workshop" : {"Prob": 0, "Type": "Mages Guild", "Size" : 3, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "workshop"},
+			"Build Mill" : {"Prob": 0, "Type": "Mages Guild", "Size" : 2, "Parent": [], "Radius":  14, "MinRad" : 1, "ID": "mill"}
 		}
 	}
 }
@@ -197,6 +211,8 @@ var allBuild = scope.getBuildings({player: me})
 var castles = scope.getBuildings({type: "Castle", player: me});
 var forts = scope.getBuildings({type: "Fortress", player: me});
 var deliverSites = castles.concat(forts);
+var finCast = scope.getBuildings({type: "Castle", player: me, onlyFinshed: true}); //Only finished Castles
+var finSite = finCast.concat(forts);
 
 var houses = scope.getBuildings({type: "House", player: me});
 var towers = scope.getBuildings({type: "Watchtower", player: me});
@@ -213,7 +229,7 @@ var Charmer = scope.getBuildings({type: "Snake Charmer", player: me});
 var workshops = scope.getBuildings({type: "Workshop", player: me});
 var mills = scope.getBuildings({type: "Mill", player: me});
 var advWkShops = scope.getBuildings({type: "Advanced Workshop", player: me});
-var impStruct = deliverSites.concat(houses.concat(Rax.concat(allDens.concat(workshops.concat(mills)))));
+var impStruct = deliverSites.concat(Rax.concat(allDens.concat(workshops.concat(mills))));
 var allAllied = scope.getBuildings({team: myTeam, onlyFinshed: true});
 
 //Variables to locate Computer owned units
@@ -239,7 +255,7 @@ if(scope.strategy == "RaxMech"){
 	Army = Soldier.concat(Archer.concat(Raider.concat(Gats.concat(Gyros.concat(Cats)))));
 }
 if(scope.strategy == "BeastMech"){
-	Army = Wolves.concat(Snakes.concat(Raider.concat(Gats.concat(Gyros.concat(Cats.concat(wereWolves))))));
+	Army = Wolves.concat(Snakes.concat(Raider.concat(Gats.concat(Gyros.concat(Cats.concat(wereWolves.concat(Dragons)))))));
 }
 if(scope.strategy == "Rax" || scope.strategy == "Skirmishers"){
 	Army = Soldier.concat(Archer.concat(Mage.concat(Raider.concat(Priest))));
@@ -335,12 +351,12 @@ repCheck = DecisionTick(Math.floor(10*scope.defensive));
 armyCheck = DecisionTick(scope.alertDelay);
 upgCheck = DecisionTick(Math.floor(30*scope.rshPrio));
 birbCheck = DecisionTick(90);
-var buildTime = DecisionTick(15*scope.expansion);
+var buildTime = DecisionTick(scope.rushControl*scope.expansion);
 var minecheck = DecisionTick(60);
 var chatCheck = DecisionTick(scope.chatter);
 var patrolCheck = DecisionTick(60*scope.defensive);
 var retreatCheck = DecisionTick(5*scope.defensive);
-var rshCheck = DecisionTick(30*scope.rshPrio);
+var rshCheck = DecisionTick(15*scope.rshPrio);
 var constructionCheck = DecisionTick(40);
 var busterCheck = DecisionTick(5);
 var flashCheck = DecisionTick(7);
@@ -351,10 +367,10 @@ var rushCastle = DecisionTick(420*scope.expansion);
 
 Brain();
 
-if(deliverSites.length < scope.cLimit && time > 60 || scope.castleSwitch == true){
+if(time > 60 && scope.castleSwitch == true){
 	//If there is less than two castles, tickrate is modified to give an extreme priority...
 	//for constructing the second castle
-	scope.castleRush = 3;
+	scope.castleRush = 2;
 }
 else{
 	//After a second castle is built, tickrate is modified to give less priority to building castles
@@ -424,6 +440,7 @@ if(isAttacked == true){
 
 	}
 }
+
 //Declares an attack against a random enemy building 
 if(isSiege == true && (scope.plentyGold == true || time > (45*scope.aggression)*scope.playNum.length)){
 
@@ -443,7 +460,7 @@ if(busterCheck == true && Mage.length> 0){
 if(flashCheck == true && Raider.length > 0){
 	Flash();
 }
-//calls the function to enable Mage fireball use
+//calls the function to enable Priest to cast invisibility
 if(invisCheck == true && Priest.length > 0){
 	Invisibility();
 }
@@ -486,17 +503,23 @@ if(upgCheck == true){
 	}
 	
 	//Upgrades the wolves dens for Beast meta. 
-	if(deliverSites.length > 1 && (scope.strategy == "Beast" || scope.strategy == "BeastMech") && wereDens.length < 1
-	&& Dens.length > 0){
+	if(deliverSites.length > 1 && scope.strategy == "Beast"
+		&& wereDens.length < 1*deliverSites.length && Dens.length > 0){
+		var selected = []
+		selected.push(Dens[Random(Dens.length)]);
+		scope.order("Upgrade To Werewolves Den", selected);
+	}
+	if(scope.strategy == "BeastMech"
+		&& wereDens.length < Dens.length){
 		var selected = []
 		selected.push(Dens[Random(Dens.length)]);
 		scope.order("Upgrade To Werewolves Den", selected);
 	}
 }
 //Upgrades a castle to a Fortress
-if(fortCheck == true && (scope.strategy == "Beast" || scope.strategy == "Beastmech")){
+if(fortCheck == true && (scope.strategy == "Beast" || scope.strategy == "BeastMech")){
 	
-	if(castles.length > 1 ){
+	if(castles.length > 1 && forts.length < 1){
 		var selected = []
 		selected.push(castles[Random(castles.length)]);
 		scope.order("Upgrade To Fortress", selected);
@@ -510,6 +533,10 @@ if (castleCheck == true && scope.plentyGold == false && workers.length > 0){
 }
 if(rushCastle == true){
 	scope.castleSwitch = true;
+	chooseMine();
+}
+if(deliverSites.length >= scope.cLimit){
+	scope.castleSwitch = false;
 	scope.cLimit = scope.cLimit + 1;
 }
 
@@ -517,6 +544,7 @@ if(rushCastle == true){
 if (workers.length > 0 && time > 5){
 	if(buildTime == true){
 		makeBuilding();
+		//console.log("Watchtower Chance:", scope.buildChance["Build Watchtower"]["Prob"]);
 	}
 	//Spams a tower next to an enemy building
 	if(isSiege == true && (scope.strategy == "OopsOnlyTowers" && enemyBuildings.length > 0) && time > 10){
@@ -729,7 +757,7 @@ function Scout(width,height, unit,squad){
 	
 }
 
-//Random Number Function - Note: Selection range begins at 0, and ends at max - 1
+//Random Number Function
 function Random(max){
 	//var rng = new Math.seedrandom("YeetBeetSkeetleDeet")
     return Math.floor(Math.random()*max);
@@ -841,7 +869,6 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		var n = Random(u.length) ;//Aquires random index
 		var s = [];
 		var check = [];
-		var Cost = scope.getTypeFieldValue(b,"cost")*scope.frugal;//Aquires cost of building
 		if (n < 0 || n >= u.length){
 			//If Index is not defined - assign the first index to prevent error
 			s[0] = u[0];
@@ -862,7 +889,7 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 		}
 		var order = s[0].getCurrentOrderName();//Gets current order for selected unit
 		var k = 0
-		while(k < 50){
+		while(k < 150){
 			
 			//Filters out builders who are building other structures
 			if(order == "Stop" || order == "Mine" && s.length > 0 && u.length > 0){
@@ -923,42 +950,39 @@ function RandBuild(building, command, Unit, size, Parent, Radius , Mod){
 						}
 					}
 					//This part of the code determines if the structure can actually be built
-					if(gold >= Cost){
-						//scans the provided coordinates to determine if position is valid.
-						var check = false;
-						for(var i = -2; i < si + 2; i++){
-							for(var z = -2; z < si +2; z++){
-								if (scope.positionIsPathable(X + i, Y + z) == false){
-									//if position is invalid, check is false
-									check = false;
-										z = si + 2;
-										i = si + 2;
-								}
-								else{
-									check = true;
-								}
-							}			
+					var check = false;
+					for(var i = -1*scope.dBuffer; i < si + scope.dBuffer; i++){
+						for(var z = -1*scope.dBuffer; z < si + scope.dBuffer; z++){
+							if (scope.positionIsPathable(X + i, Y + z) == false){
+							//if position is invalid, check is false
+							check = false;
+								z = si + 2;
+								i = si + 2;
+							}
+							else{
+								check = true;
+							}
 						}
+					}
 						//If the parent is a gold mine do the following checks
+						
 						if(p.getTypeName() == "Goldmine"){
-							//Make sure new castle is on the same elevation
-							if(scope.getHeightLevel(parX, parY) == scope.getHeightLevel(X, Y)){
+							/*
+							//Make sure the castle isn't built too close to the goldmine
+							if ( ((p.getX() - 7 >= X + si) || (p.getX() + 7 <= X) ) ||  ((p.getY() - 7 >= Y + si) || (p.getY() + 7 <= Y))) {
 								check = true;
 							}
 							else{
 								check = false;
-							}
-							//Make sure there isn't already a castle near that gold mine
+							}*/
 						}
 
-								
-						if (check == true){
+					if (check == true){
 							//if position is valid, check is true, and an order is issued to build at location
 							//Code then breaks the overarching while loop to prevent infinite run time
 							scope.order("Stop", s);//Stops current Order
 							scope.order(c, s,{x: X ,y: Y});//Orders construction at random coordinates
-							k = 60;
-						}
+							k = 2000;
 					}
 				}
 											
@@ -1025,10 +1049,10 @@ function randBehavior(min, m){
 
 //Gets the distance between two objects
 function GetDist(obj1, obj2){
-		var X1 = obj1.getX();
-		var X2 = obj2.getX();
-		var Y1 = obj1.getY();
-		var Y2 = obj2.getY();
+		var X1 = Math.floor(obj1.getX());
+		var X2 = Math.floor(obj2.getX());
+		var Y1 = Math.floor(obj1.getY());
+		var Y2 = Math.floor(obj2.getY());
 		
 		var X = X1 - X2;
 		var Y = Y1 - Y2;
@@ -1077,8 +1101,15 @@ function newCastle(){
 			}
 			else{
 				//if there was no valid parent found, just build at a random goldmine
-				scope.order("Stop", selWorker);//Stops current Order
-				RandBuild("Castle","Build Castle", selWorker, 4, mines, 13, 11);
+				if(scope.priorityMine.length > 0){
+					scope.order("Stop", selWorker);//Stops current Order
+					RandBuild("Castle","Build Castle", selWorker, 4, scope.priorityMine, 13, 11);
+				}
+				else{
+					scope.order("Stop", selWorker);//Stops current Order
+					RandBuild("Castle","Build Castle", selWorker, 4, mines, 13, 11);
+				}
+				
 			}
 		}
 	}
@@ -1098,7 +1129,7 @@ function plentiGold(){
 		for(var g = 0; g < mines.length; g++){
 			if (GetDist(d, mines[g]) < rad){
 				//Checks if the gold mine is on the same elevation - if it is, add it to array
-				if(scope.getHeightLevel(mines[g].getX(), mines[g].getY()) == scope.getHeightLevel(d.getX(), d.getY())){
+				if(scope.getHeightLevel(Math.floor(mines[g].getX()), Math.floor(mines[g].getY())) == scope.getHeightLevel(Math.floor(d.getX()), Math.floor(d.getY()))){
 					closeMines.push(mines[g]);
 				}
 			}
@@ -1115,7 +1146,7 @@ function plentiGold(){
 //Deploys random chatter to make the bot feel more interactive
 function randomChatter(){
 	var identity = "Computer: "
-	var chatChoice =["You ever wonder what it would be like to be a real person?",
+	var chatChoice = ["You ever wonder what it would be like to be a real person?",
 	"Only one of us is getting out of here alive....and its not gonna be me since I am not real",
 	"Is the sky actually blue?",
 	"What is your favorite Song?","When did you start playing Little War Game?","This game is pretty great yea?", 
@@ -1127,10 +1158,9 @@ function randomChatter(){
 	"Remember, dying is usually unhealthy.", 
 	"Shave big monkeys at Menards!", 
 	"Is water wet? I don't want to find out.", 
-	"We come in peace!", 
-	"Blue pill or red pill?",
-    "The problem with the gene pool is that you are peeing in it. And there's no lifeguard. Mostly the pee though.", "Why, hello there.", "We have nothing to fear but bad programming",
-    "Would you like some battry acid to go with an entree of frozen antifreeze?", "Hmm hmm hmm HMMM hm hmm hmmmmm..."];
+	"We come in peace!",
+    "The problem with the gene pool is that you are peeing in it.", "Why, hello there.", 
+	"We have nothing to fear but bad programming", "Hmm hmm hmm HMMM hm hmm hmmmmm..."];
 	var chatLine = "";
 	if(me == 1){
 		identity = "Red: "
@@ -1345,8 +1375,12 @@ function ChooseUnit(){
 	var probSwitch = false; //Keeps a while loop going until a training order gets selected
 	var deathSwitch = 0;
 	while (probSwitch == false){
+		deathSwitch = deathSwitch + 1;
+		if(deathSwitch > 300){
+			break;
+		}
 		var c = keys[Random(keys.length)];
-		var d = scope.unitChance[c]; // Stores the probability of a unit to be trained
+		var d = scope.unitChance[c]["Prob"]; // Stores the probability of a unit to be trained
 		var n = Random(10000)/10000;//Selects a random number to be compared to 'd'
 		//Checks if the unit was selected - if it wasn't it maintains the probSwitch as false and continues cycling for-Loop
 		if(n < d && d > 0){
@@ -1360,7 +1394,7 @@ function ChooseUnit(){
 			if(c == "Train Werewolf"){
 				TrainUnit(wereDens,	c);
 			}
-			if(c == "Train Dragons"){
+			if(c == "Train Dragon"){
 				TrainUnit(Lairs,	c);
 			}
 			if(c == "Construct Gatling Gun" || c == "Construct Catapult"){
@@ -1385,19 +1419,22 @@ function makeBuilding(){
 		keys.push(k);
 	}
 	var probSwitch = false; //Keeps a while loop going until a training order gets selected
+	var breakout = 0;
 	while (probSwitch == false){
+		breakout = breakout + 1;
+		if(breakout > 300){
+			break;
+		}
 		c = keys[Random(keys.length)];
-		//RandBuild(building, command, Unit, size, Parent, Radius , Mod)
+		var Cost = scope.getTypeFieldValue(scope.buildChance[c]["ID"] , "cost"); //Aquires cost of building
 		var d = scope.buildChance[c]["Prob"]; // Stores the probability of a unit to be trained
-		var n = Random(10000)/10000;//Selects a random number to be compared to 'd'
-		//console.log("Order: ", c);
-		//console.log("Num: ", n);
-		//console.log("Chance: ", d);
+		var n = Random(1000)/1000;//Selects a random number to be compared to 'd'
 		//Checks if the unit was selected - if it wasn't it maintains the probSwitch as false and continues cycling for-Loop
-		if(n < d && d > 0 && scope.buildChance[c]["Parent"].length > 0){
+		if(n < d && d > 0 && scope.buildChance[c]["Parent"].length > 0 && gold > Cost){
+			//console.log("Gold:", gold);
+			//console.log("Decision: ", c);
 			RandBuild(scope.buildChance[c]["Type"], c, workers, scope.buildChance[c]["Size"], scope.buildChance[c]["Parent"],
 			scope.buildChance[c]["Radius"], scope.buildChance[c]["MinRad"]);
-
 			probSwitch = true;
 		}
 	}	
@@ -1411,11 +1448,11 @@ function Brain(){
 	//Meta Specific Commands
 	if(scope.strategy == "Rax"){
 		if(guilds.length > 0){
-			scope.unitChance["Train Mage"] = 0.15
+			scope.unitChance["Train Mage"]["Prob"] = 0.15
 			if(scope.getUpgradeLevel("Fireball") > 0){
-				scope.unitChance["Train Mage"] = 0.40 + scope.flexibility;
-				scope.unitChance["Train Soldier"] = 0.40
-				scope.unitChance["Train Archer"] = 0.30
+				scope.unitChance["Train Mage"]["Prob"] = 0.40 + scope.flexibility;
+				scope.unitChance["Train Soldier"]["Prob"] = 0.30
+				scope.unitChance["Train Archer"]["Prob"] = 0.25
 			}
 		}
 	}
@@ -1425,104 +1462,112 @@ function Brain(){
 			scope.unitChance["Train Raider"] = 0.2 
 			if(scope.getUpgradeLevel("Invisibility") > 0){
 				scope.unitChance["Train Priest"] = 0.20 + scope.flexibility
-				scope.unitChance["Train Raider"] = 0.2 + scope.flexibility
-				scope.unitChance["Train Soldier"] = 0.5
-				scope.unitChance["Train Archer"] = 0.3
+				scope.unitChance["Train Raider"] = 0.30 + scope.flexibility
+				scope.unitChance["Train Soldier"] = 0.4
+				scope.unitChance["Train Archer"] = 0.25
 				
 			}
 		}
 	}
 	if(scope.strategy == "Beast"){
 		if(wereDens.length > 0){
-			scope.unitChance["Train Werewolf"] = 0.45
+			scope.unitChance["Train Werewolf"]["Prob"] = 0.45
 		}
 		else{
-			scope.unitChance["Train Werewolf"] = 0
+			scope.unitChance["Train Werewolf"]["Prob"] = 0
 		}
 		if(Lairs.length > 0){
-			scope.unitChance["Train Dragon"] = 0.20
+			scope.unitChance["Train Dragon"]["Prob"] = 0.25
 		}
 		else{
-			scope.unitChance["Train Dragon"] = 0
+			scope.unitChance["Train Dragon"]["Prob"] = 0
 		}
 		
 	}
 	if(scope.strategy == "BeastMech"){
 		if(wereDens.length > 0){
-			scope.unitChance["Train Werewolf"] = 0.35
-			scope.unitChance["Train Wolf"] = 0.40
-			scope.unitChance["Train Snake"] = 0.45
+			scope.unitChance["Train Werewolf"]["Prob"] = 0.45
+			scope.unitChance["Train Wolf"]["Prob"] = 0
+			scope.unitChance["Train Snake"]["Prob"] = 0.20
 		}
 		else{
-			scope.unitChance["Train Werewolf"]= 0
+			scope.unitChance["Train Werewolf"]["Prob"] = 0
 		}
 		if(workshops.length > 0){
-			scope.unitChance["Train Gatling Gun"]= 0.25
-			scope.unitChance["Train Catapult"]= 0.35
+			scope.unitChance["Construct Gatling Gun"]["Prob"] = 0.35
+			scope.unitChance["Construct Catapult"]["Prob"] = 0.35
 		}
 		else{
-			scope.unitChance["Train Gatling Gun"] = 0
-			scope.unitChance["Train Catapult"] = 0
+			scope.unitChance["Construct Gatling Gun"]["Prob"] = 0
+			scope.unitChance["Construct Catapult"]["Prob"] = 0
 		}
 		if(Lairs.length > 0){
-			scope.unitChance["Train Dragon"] = 0.20
+			scope.unitChance["Train Dragon"]["Prob"] = 0.25
 		}
 		else{
-			scope.unitChance["Train Dragon"] = 0
+			scope.unitChance["Train Dragon"]["Prob"] = 0
 		}
 	}
 	if(scope.strategy == "RaxMech"){
 		if((workshops.length || mills.length) > 1){
-			scope.unitChance["Train Archer"] = 0.25
-			scope.unitChance["Train Soldier"] = 0.45
+			scope.unitChance["Train Archer"]["Prob"] = 0.25
+			scope.unitChance["Train Soldier"]["Prob"] = 0.45
 		}
 		if(workshops.length > 0){
-			scope.unitChance["Construct Gatling Gun"] = 0.35
-			scope.unitChance["Construct Catapult"] = 0.35
+			scope.unitChance["Construct Gatling Gun"]["Prob"] = 0.35
+			scope.unitChance["Construct Catapult"]["Prob"] = 0.35
 		}
 		else{
-			scope.unitChance["Construct Gatling Gun"] = 0
-			scope.unitChance["Construct Catapult"] = 0
+			scope.unitChance["Construct Gatling Gun"]["Prob"] = 0
+			scope.unitChance["Construct Catapult"]["Prob"] = 0
 		}
 		if(mills.length > 0){
-			scope.unitChance["Construct Gyrocraft"]= 0.30
+			scope.unitChance["Construct Gyrocraft"]["Prob"] = 0.30
 		}
 		else{
-			scope.unitChance["Construct Gyrocraft"]= 0.30
+			scope.unitChance["Construct Gyrocraft"]["Prob"] = 0.30
 		}
 	}
-		
 	//Building Controls
 	//-------------------------------------------------------
 	//Generic Commands
 	if(houses.length > 0){
 		//if a house exists - adjust probability of making house
-		if(supDiff < 4 && time > 75){
+		if(supDiff < 4 && time > 120){
 			//If supply is running out - build new house
-			scope.buildChance["Build House"]["Prob"] = 0.95
+			scope.buildChance["Build House"]["Prob"] = 0.50
 		}
 		else{
-			//If supply is fine, have low probability of making house
+			//If supply is fine, do not build houses
 			scope.buildChance["Build House"]["Prob"] = -1
 		}
-		if(gold > 600){
-			scope.buildChance["Build Watchtower"]["Prob"] = 0.20
+		//If there's less than two watchtowers, or gold is in surplus, build watchtowers
+		if(towers.length < 2 || gold > 250){
+			scope.buildChance["Build Watchtower"]["Prob"] = 0.35
 		}
 		else{
-			scope.buildChance["Build Watchtower"]["Prob"] = 0.05
+			scope.buildChance["Build Watchtower"]["Prob"] = 0.15
 		}
+			
 	}
 	//Meta Specific Commands
 	if(scope.strategy == "Rax"){
 		if(houses.length > 0){
 			//If there's a house, adjust probability of Barracks
-			if(Rax.length < (deliverSites.length*2)){
-				//If there's less than two barracks per castle - set probability high
+			if(Rax.length < 1 && deliverSites.length < 2){
+				//If there's no barracks yet, make one. 
 				scope.buildChance["Build Barracks"]["Prob"] = 0.70
 			}
 			else{
-				//If there's at least two barracks per castle - set probability low
+				//If there is only one castle, and the computer has a barracks, set probability low. 
 				scope.buildChance["Build Barracks"]["Prob"] = 0.10
+			}
+			//If the computer has two castles, build up to 3 Barracks
+			if(deliverSites.length > 1 && Rax.length < 3){
+				scope.buildChance["Build Barracks"]["Prob"] = 0.75
+			}
+			else{
+				scope.buildChance["Build Barracks"]["Prob"] = 0.05
 			}
 		}
 		if(Rax.length > 0){
@@ -1539,14 +1584,20 @@ function Brain(){
 	}
 	if(scope.strategy == "Skirmishers"){
 		if(houses.length > 0){
-			//If there's a house, adjust probability of Barracks
-			if(Rax.length < deliverSites.length*2){
-				//If there's less than two barracks per castle - set probability high
+			if(Rax.length < 1 && deliverSites.length < 2){
+				//If there's no barracks yet, make one. 
 				scope.buildChance["Build Barracks"]["Prob"] = 0.70
 			}
 			else{
-				//If there's at least two barracks per castle - set probability low
+				//If there is only one castle, and the computer has a barracks, set probability low. 
 				scope.buildChance["Build Barracks"]["Prob"] = 0.10
+			}
+			//If the computer has two castles, build up to three Barracks
+			if(deliverSites.length > 1 && Rax.length < 3){
+				scope.buildChance["Build Barracks"]["Prob"] = 0.75
+			}
+			else{
+				scope.buildChance["Build Barracks"]["Prob"] = 0.05
 			}
 		}
 		if(Rax.length > 0){
@@ -1564,14 +1615,31 @@ function Brain(){
 	}
 	if(scope.strategy == "Beast"){
 		if(houses.length > 0 && Charmer.length < 1){
+			//If there is no Snake Charmer, make 1
 			scope.buildChance["Build Snake Charmer"]["Prob"] = 0.70
 		}
 		else{
 			scope.buildChance["Build Snake Charmer"]["Prob"] = -1
 		}
-		if(houses.length > 0 && allDens.length < (deliverSites.length*2)){
-			//if there is a house, and less than two dens per castle - make some more
-			scope.buildChance["Build Wolves Den"]["Prob"] = 0.65
+		if(houses.length > 0){
+			//If there is less than 2 castles, build only 2 dens
+			if(deliverSites.length < 2){
+				if(allDens.length < 2){
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0.6
+				}
+				else{
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0
+				}
+			}
+			else{
+				//If there are more than two castles, its safe to go up to 3 dens
+				if(allDens.length < 3){
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0.6
+				}
+				else{
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0
+				}
+			}
 		}
 		else{
 			scope.buildChance["Build Wolves Den"]["Prob"] = 0
@@ -1591,6 +1659,7 @@ function Brain(){
 		}
 	}
 	if(scope.strategy == "BeastMech"){
+		scope.buildChance["Build Watchtower"]["Prob"] = 0.25
 		if(houses.length > 0){
 			if(Charmer.length < 1){
 				scope.buildChance["Build Snake Charmer"]["Prob"] = 0.70
@@ -1598,15 +1667,26 @@ function Brain(){
 			else{
 				scope.buildChance["Build Snake Charmer"]["Prob"] = -1
 			}
-			if(allDens.length < (deliverSites.length*2)){
-				//if there is less than two dens per castle - make some more		
-				scope.buildChance["Build Wolves Den"]["Prob"] = 0.80
+			if(deliverSites.length < 2){
+				//If there's only one castle, make only two dens
+				if(allDens.length < 2){
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0.6
+				}
+				else{
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0
+				}
 			}
 			else{
-				scope.buildChance["Build Wolves Den"]["Prob"] = 0.05
+				//If there's more than one castle, make a 3rd den
+				if(allDens.length < 3){
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0.6
+				}
+				else{
+					scope.buildChance["Build Wolves Den"]["Prob"] = 0
+				}
 			}
-			if(workshops.length < deliverSites.length){
-				//if there is less than a workshop per castle - make some more		
+			if(workshops.length < 1){
+				//if there is less than two Workshops, build them	
 				scope.buildChance["Build Workshop"]["Prob"] = 0.35
 			}
 			else{
@@ -1621,8 +1701,8 @@ function Brain(){
 		if(forts.length > 0 && Lairs.length < 1){
 			//If there is a fortress begin training dragons
 			scope.buildChance["Build Dragons Lair"]["Prob"] = 0.45 + scope.flexibility
-			if(gold > 600){
-				scope.buildChance["Build Dragons Lair"]["Prob"] = 0.40 + scope.flexibility*2
+			if(gold > 600 || (deliverSites.length*2 <= allDens.length)){
+				scope.buildChance["Build Dragons Lair"]["Prob"] = 0.70 + scope.flexibility*2
 			}
 			else{
 				scope.buildChance["Build Dragons Lair"]["Prob"] = 0.35 + scope.flexibility
@@ -1634,23 +1714,28 @@ function Brain(){
 	}
 	if(scope.strategy == "RaxMech"){
 		if(houses.length > 0){
-			//If there's a house, adjust probability of Barracks
-			if(Rax.length < (deliverSites.length*2)){
-				//If there's less than two barracks per castle - set probability high
+			if(Rax.length < 1 && deliverSites.length < 2){
+				//If there's no barracks yet, make one. 
 				scope.buildChance["Build Barracks"]["Prob"] = 0.70
 			}
-			else{
-				//If there's at least two barracks per castle - set probability low
-				scope.buildChance["Build Barracks"]["Prob"] = 0.10
+			else{ 
+				scope.buildChance["Build Barracks"]["Prob"] = 0
 			}
-			if(workshops.length < deliverSites.length){
+			//If the computer has two castles, build up to two Barracks
+			if(deliverSites.length > 1 && Rax.length < 2){
+				scope.buildChance["Build Barracks"]["Prob"] = 0.75
+			}
+			else{
+				scope.buildChance["Build Barracks"]["Prob"] = 0.05
+			}
+			if(workshops.length < 1){
 				//if there is less than a workshop per castle - make some more		
 				scope.buildChance["Build Workshop"]["Prob"] = 0.35
 			}
 			else{
 				scope.buildChance["Build Workshop"]["Prob"] = 0.05
 			}
-			if(mills.length < deliverSites.length){
+			if(mills.length < 1){
 				//if there is less than a Mill per castle - make some more		
 				scope.buildChance["Build Mill"]["Prob"] = 0.40
 			}
@@ -1660,7 +1745,78 @@ function Brain(){
 			
 		}
 	}
+
 	
 	//Behavior Controls
+	//Generic
+	if(scope.castleSwitch == true){
+		scope.rushControl = 15
+	}
+	else{
+		scope.rushControl = 7
+	}
+	//Meta Specific
+	if(scope.strategy == "BeastMech" ){
+		if(deliverSites.length < 2){
+			scope.alertDelay = 17;
+		}
+		else{
+			scope.alertDelay = 10;
+		}
+	}
 }
 
+//Chooses a goldmine nearby a random castle for the bot to focus building at.
+function chooseMine(){
+	/*If the bot has a second castle, this function will select a random goldmine within a large radius around a 
+	random castle. This function ensures when its time to build the 3rd castle, the bot doesn't get paralyzed
+	by flipping between any random goldmine on the map.*/
+	var nearestDist = 99999;
+	var closeMines = [];//stores an array of mines that are close to the castle
+	var d = deliverSites[Random(deliverSites.length)]; //Selects a random castle
+	var radius = Math.floor(40/scope.expansion); //Decides how far the computer is willing to build based on the expansion behavior
+	if(deliverSites.length > 0){
+		for(var i = 0; i < mines.length; i++){
+			// get nearest goldmine that is not right next to the castle
+			var mine = mines[i];
+			var dist = GetDist(d, mine);
+			if(dist < nearestDist && dist > 13)
+			{
+				nearestDist = dist;
+			}
+		}
+		for(var i = 0; i < mines.length; i++){
+			//adds goldmines within the radius to the array
+			var mine = mines[i];
+			var distance = GetDist(d, mine);
+			if(distance >= nearestDist-1 && distance < radius){
+				for(var F = 0; F < deliverSites.length; F++){
+					//Check if there is already a castle nearby
+					var distCheck = GetDist(deliverSites[F], mine);
+					var closeCheck = false;
+					if(distCheck > 16){
+						//if there is no nearby castle, add the mine to the array
+						closeCheck = true
+					}
+					else{
+						closeCheck = false
+						F = deliverSites.length
+						//If there is a nearby castle, skip this mine
+					}
+				}
+				if(closeCheck == true){
+					closeMines.push(mine);
+				}
+			}
+		}
+		
+		
+		if(closeMines.length > 0){
+			scope.priorityMine[0] = closeMines[Random(closeMines.length)];
+		}
+		else{
+			scope.priorityMine = [];
+		}
+		
+	}
+}
